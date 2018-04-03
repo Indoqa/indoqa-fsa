@@ -16,10 +16,17 @@
  */
 package com.indoqa.fsa;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Locale;
+import java.util.Set;
+import java.util.TreeSet;
+
+import com.indoqa.fsa.utils.EncodingUtils;
 
 import morfologik.fsa.FSA;
+import morfologik.fsa.builders.FSA5Serializer;
 import morfologik.fsa.builders.FSABuilder;
 import morfologik.stemming.Dictionary;
 import morfologik.stemming.DictionaryMetadata;
@@ -28,16 +35,22 @@ import morfologik.stemming.EncoderType;
 
 public class TransducerBuilder {
 
-    private List<byte[]> inputs = new ArrayList<>();
+    private final Set<byte[]> inputs = new TreeSet<>(FSABuilder.LEXICAL_ORDERING);
 
     private final char separator;
+    private final boolean caseSensitive;
 
     private final DictionaryMetadata dictionaryMetadata;
 
     public TransducerBuilder(char separator) {
+        this(separator, true);
+    }
+
+    public TransducerBuilder(char separator, boolean caseSensitive) {
         super();
 
         this.separator = separator;
+        this.caseSensitive = caseSensitive;
 
         DictionaryMetadataBuilder dictionaryMetadataBuilder = new DictionaryMetadataBuilder();
         dictionaryMetadataBuilder.separator(separator);
@@ -46,19 +59,61 @@ public class TransducerBuilder {
         this.dictionaryMetadata = dictionaryMetadataBuilder.build();
     }
 
+    public static Transducer read(InputStream inputStream) throws IOException {
+        char separator = (char) (inputStream.read() & 0xFFFF);
+        boolean caseSensitive = (inputStream.read() & 0xFFFF) == 1;
+
+        DictionaryMetadataBuilder dictionaryMetadataBuilder = new DictionaryMetadataBuilder();
+        dictionaryMetadataBuilder.separator(separator);
+        dictionaryMetadataBuilder.encoder(EncoderType.NONE);
+        dictionaryMetadataBuilder.encoding(EncodingUtils.CHARSET);
+        DictionaryMetadata dictionaryMetadata = dictionaryMetadataBuilder.build();
+
+        FSA fsa = FSA.read(inputStream);
+        return new Transducer(new Dictionary(fsa, dictionaryMetadata), caseSensitive);
+    }
+
     public void add(String input, String output) {
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(input);
+
+        if (this.caseSensitive) {
+            stringBuilder.append(input);
+        } else {
+            stringBuilder.append(input.toLowerCase(Locale.ROOT));
+        }
         stringBuilder.append(this.separator);
         stringBuilder.append(output);
 
-        this.inputs.add(EncodingUtils.getBytes(stringBuilder.toString()));
+        this.inputs.add(EncodingUtils.getBytes(stringBuilder));
     }
 
     public Transducer build() {
-        this.inputs.sort(FSABuilder.LEXICAL_ORDERING);
+        FSA fsa = this.buildFSA();
 
-        FSA fsa = FSABuilder.build(this.inputs);
-        return new Transducer(new Dictionary(fsa, this.dictionaryMetadata));
+        return new Transducer(new Dictionary(fsa, this.dictionaryMetadata), this.caseSensitive);
+    }
+
+    public int size() {
+        return this.inputs.size();
+    }
+
+    public void write(OutputStream outputStream) throws IOException {
+        outputStream.write(this.dictionaryMetadata.getSeparatorAsChar());
+        outputStream.write(this.caseSensitive ? 1 : 0);
+
+        FSA fsa = this.buildFSA();
+
+        FSA5Serializer fsa5Serializer = new FSA5Serializer();
+        fsa5Serializer.serialize(fsa, outputStream);
+    }
+
+    private FSA buildFSA() {
+        FSABuilder builder = new FSABuilder(64 * 1024);
+
+        for (byte[] eachInput : this.inputs) {
+            builder.add(eachInput, 0, eachInput.length);
+        }
+
+        return builder.complete();
     }
 }

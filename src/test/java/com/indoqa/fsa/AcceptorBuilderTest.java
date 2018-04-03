@@ -19,6 +19,8 @@ package com.indoqa.fsa;
 import static org.junit.Assert.*;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.junit.Test;
 
@@ -27,15 +29,55 @@ public class AcceptorBuilderTest {
     private static final int STRING_COUNT = 10000;
 
     @Test
-    public void test() {
-        List<String> inputs = TestUtils.generateRandomStrings(STRING_COUNT);
-        Acceptor acceptor = AcceptorBuilder.build(inputs);
+    public void getLongestMatch() {
+        AcceptorBuilder builder = new AcceptorBuilder(true);
+        builder.addAcceptedInput("Wien ");
+        builder.addAcceptedInput("Salzburg ");
+        builder.addAcceptedInput("Wels ");
+        builder.addAcceptedInput("Wien Umgebung ");
+        builder.addAcceptedInput("Salzburg Land ");
+        builder.addAcceptedInput("Wels Umgebung ");
 
-        for (String eachInput : inputs) {
-            assertTrue("Original input string should be accepted.", acceptor.accepts(eachInput));
+        Acceptor acceptor = builder.build();
+        assertEquals("Wien ", acceptor.getLongestMatch("Wien 12345 AB"));
+        assertEquals("Wien Umgebung ", acceptor.getLongestMatch("Wien Umgebung 12345 AB"));
+        assertEquals("Salzburg ", acceptor.getLongestMatch("Salzburg Landtag 12345 AB"));
+    }
+
+    @Test
+    public void getTokens() {
+        AcceptorBuilder builder = new AcceptorBuilder(true);
+        builder.addAcceptedInput("Auto");
+        builder.addAcceptedInput("Autobahn");
+        builder.addAcceptedInput("links");
+        builder.addAcceptedInput("schneller");
+        builder.addAcceptedInput("schnell");
+        builder.addAcceptedInput("fährt");
+        builder.addAcceptedInput("fahr");
+        builder.addAcceptedInput("gefahren");
+        Acceptor acceptor = builder.build();
+
+        List<Token> result = acceptor.getTokens("Auf der Autobahn fährt man ganz links meist schneller.");
+        List<String> values = result.stream().map(Token::getValue).collect(Collectors.toList());
+        assertTrue(values.contains("Autobahn"));
+        assertTrue(values.contains("fährt"));
+        assertTrue(values.contains("links"));
+        assertTrue(values.contains("schneller"));
+        assertEquals(4, result.size());
+    }
+
+    @Test
+    public void random() {
+        Set<String> inputs = TestUtils.generateRandomStrings(STRING_COUNT);
+        Acceptor acceptor = AcceptorBuilder.build(true, inputs);
+
+        for (int i = 0; i < 1000; i++) {
+            for (String eachInput : inputs) {
+                assertTrue("Original input string should be accepted.", acceptor.accepts(eachInput));
+            }
         }
 
-        List<String> otherInputs = TestUtils.generateRandomStrings(1000);
+        Set<String> otherInputs = TestUtils.generateRandomStrings(STRING_COUNT);
         for (String eachOtherInput : otherInputs) {
             assertEquals("Random input should only be accepted if it was part of the original input.", inputs.contains(eachOtherInput),
                 acceptor.accepts(eachOtherInput));

@@ -16,23 +16,33 @@
  */
 package com.indoqa.fsa;
 
-import java.nio.ByteBuffer;
+import static com.indoqa.fsa.traversal.Result.Match.*;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+import com.indoqa.fsa.traversal.AllMatchesFSATraversal;
+import com.indoqa.fsa.traversal.PrefixFSATraversal;
+import com.indoqa.fsa.traversal.Result;
+import com.indoqa.fsa.utils.EncodingUtils;
 
 import morfologik.fsa.FSA;
-import morfologik.fsa.FSATraversal;
-import morfologik.fsa.MatchResult;
 
 public class Acceptor {
 
-    private final FSA fsa;
-    private final FSATraversal fsaTraversal;
+    private static final String[] EMPTY_STRINGS = new String[0];
 
-    private final ObjectPool<MatchResult> matchResults = new ObjectPool<>(10);
-    private final ObjectPool<ByteBuffer> byteBuffers = new ObjectPool<>(10);
+    private final boolean caseSensitive;
+    private final int rootNode;
+    private final PrefixFSATraversal prefixTraversal;
+    private final AllMatchesFSATraversal allMatchesTraversal;
 
-    public Acceptor(FSA fsa) {
-        this.fsa = fsa;
-        this.fsaTraversal = new FSATraversal(fsa);
+    protected Acceptor(FSA fsa, boolean caseSensitive) {
+        this.caseSensitive = caseSensitive;
+        this.rootNode = fsa.getRootNode();
+        this.prefixTraversal = new PrefixFSATraversal(fsa);
+        this.allMatchesTraversal = new AllMatchesFSATraversal(fsa);
     }
 
     public boolean accepts(CharSequence value) {
@@ -40,47 +50,92 @@ public class Acceptor {
             return false;
         }
 
-        MatchResult matchResult = this.getMatchResult();
-        ByteBuffer byteBuffer = EncodingUtils.encode(value, this.getByteBuffer());
-        byteBuffer.flip();
+        byte[] bytes = this.getBytes(value);
 
-        try {
-            MatchResult match = this.fsaTraversal.match(matchResult, byteBuffer.array(), 0, byteBuffer.limit(),
-                this.fsa.getRootNode());
-            return match.kind == MatchResult.EXACT_MATCH;
-        } finally {
-            this.poolMatchResult(matchResult);
-            this.poolByteBuffer(byteBuffer);
-        }
+        Result result = this.prefixTraversal.match(bytes);
+        return result.getMatch() == EXACT_MATCH;
     }
 
-    private ByteBuffer getByteBuffer() {
-        ByteBuffer result = this.byteBuffers.get();
+    public String[] getAllMatches(CharSequence value) {
+        if (value == null) {
+            return EMPTY_STRINGS;
+        }
 
-        if (result == null) {
-            result = ByteBuffer.allocate(1024);
-        } else {
-            result.clear();
+        byte[] bytes = this.getBytes(value);
+        return this.getAllMatches(bytes, 0, bytes.length);
+    }
+
+    public String getLongestMatch(CharSequence value) {
+        byte[] bytes = this.getBytes(value);
+
+        return this.getLongestMatch(bytes, 0, bytes.length);
+    }
+
+    public List<Token> getTokens(CharSequence value) {
+        List<Token> result = new ArrayList<>();
+
+        byte[] bytes = this.getBytes(value);
+
+        Token lastToken = null;
+
+        for (int i = 0; i < bytes.length - 1; i++) {
+            String longestMatch = this.getLongestMatch(bytes, i, bytes.length - i);
+            if (longestMatch == null) {
+                continue;
+            }
+
+            int charOffset = EncodingUtils.getString(bytes, 0, i).length();
+            Token token = Token.create(charOffset, longestMatch);
+            if (lastToken == null || lastToken.isDisjunct(token)) {
+                result.add(token);
+                lastToken = token;
+                continue;
+            }
+
+            if (lastToken.getLength() >= token.getLength()) {
+                continue;
+            }
+
+            result.remove(result.size() - 1);
+            result.add(token);
+            lastToken = token;
         }
 
         return result;
     }
 
-    private MatchResult getMatchResult() {
-        MatchResult result = this.matchResults.get();
+    private String[] getAllMatches(byte[] bytes, int offset, int length) {
+        int[] allMatches = this.allMatchesTraversal.getAllMatches(bytes, offset, length);
+        String[] result = new String[allMatches.length];
 
-        if (result == null) {
-            result = new MatchResult();
+        for (int i = 0; i < allMatches.length; i++) {
+            result[i] = EncodingUtils.getString(bytes, offset, allMatches[i]);
         }
 
         return result;
     }
 
-    private void poolByteBuffer(ByteBuffer byteBuffer) {
-        this.byteBuffers.put(byteBuffer);
+    private byte[] getBytes(CharSequence value) {
+        if (this.caseSensitive) {
+            return EncodingUtils.getBytes(value);
+        }
+
+        return EncodingUtils.getBytes(value.toString().toLowerCase(Locale.ROOT));
     }
 
-    private void poolMatchResult(MatchResult matchResult) {
-        this.matchResults.put(matchResult);
+    private String getLongestMatch(byte[] bytes, int offset, int length) {
+        Result result = new Result();
+
+        Result match = this.prefixTraversal.match(result, bytes, offset, length, this.rootNode);
+
+        if (match.getMatch() == EXACT_MATCH) {
+            return EncodingUtils.getString(bytes, offset, length);
+        }
+
+        if (match.getMatch() == PARTIAL_MATCH) {
+            return EncodingUtils.getString(bytes, offset, match.getMatchedLength());
+        }
+
+        return null;
     }
 }

@@ -16,22 +16,40 @@
  */
 package com.indoqa.fsa;
 
-import java.util.HashSet;
-import java.util.Set;
+public class Word {
 
-import org.apache.commons.lang3.RandomStringUtils;
+    private final String word;
+    private final Token left;
+    private final Token right;
 
-public class TestUtils {
-
-    public static Set<String> generateRandomStrings(int count) {
-        Set<String> result = new HashSet<>();
-
-        while (result.size() < count) {
-            String randomAlphanumeric = RandomStringUtils.randomAlphanumeric(20);
-            result.add(randomAlphanumeric);
-        }
-
-        return result;
+    public Word(String word, Token left, Token right) {
+        super();
+        this.word = word;
+        this.left = left;
+        this.right = right;
     }
 
+    public Token getLeft() {
+        return this.left;
+    }
+
+    public Token getRight() {
+        return this.right;
+    }
+
+    public String getWord() {
+        return this.word;
+    }
+
+    public boolean hasLeft() {
+        return this.left != null;
+    }
+
+    public boolean hasRight() {
+        return this.right != null;
+    }
+
+    public boolean isRecognized() {
+        return this.hasRight();
+    }
 }

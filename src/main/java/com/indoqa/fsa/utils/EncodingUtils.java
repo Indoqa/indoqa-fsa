@@ -14,28 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.utils;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
-public final class ObjectPool<T> {
+public final class EncodingUtils {
 
-    private Queue<T> pooledObjects = new ConcurrentLinkedQueue<>();
-    private final int maxSize;
+    public static final Charset CHARSET = StandardCharsets.UTF_8;
 
-    public ObjectPool(int maxSize) {
-        super();
-        this.maxSize = maxSize;
+    private EncodingUtils() {
+        // hide utility class constructor
     }
 
-    public T get() {
-        return this.pooledObjects.poll();
+    public static byte[] getBytes(CharSequence value) {
+        return getBytes(value.toString());
     }
 
-    public void put(T object) {
-        if (this.pooledObjects.size() < this.maxSize) {
-            this.pooledObjects.offer(object);
-        }
+    public static byte[] getBytes(String value) {
+        return value.getBytes(CHARSET);
+    }
+
+    public static String getString(byte[] bytes, int offset, int length) {
+        return new String(bytes, offset, length, CHARSET);
     }
 }
