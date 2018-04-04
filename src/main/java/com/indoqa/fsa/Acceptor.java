@@ -17,6 +17,7 @@
 package com.indoqa.fsa;
 
 import static com.indoqa.fsa.traversal.Result.Match.*;
+import static java.util.Collections.emptyList;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -72,6 +73,10 @@ public class Acceptor {
     }
 
     public List<Token> getTokens(CharSequence value) {
+        if (value == null) {
+            return emptyList();
+        }
+
         List<Token> result = new ArrayList<>();
 
         byte[] bytes = this.getBytes(value);

@@ -28,7 +28,7 @@ public class AcceptorBuilderTest {
 
     private static final int STRING_COUNT = 10000;
 
-    private static Acceptor createAcceptor() {
+    private static Acceptor createRegionsAcceptor() {
         AcceptorBuilder builder = new AcceptorBuilder(true);
         builder.addAcceptedInput("Wien ");
         builder.addAcceptedInput("Salzburg ");
@@ -39,23 +39,7 @@ public class AcceptorBuilderTest {
         return builder.build();
     }
 
-    @Test
-    public void getLongestMatch() {
-        Acceptor acceptor = createAcceptor();
-        assertEquals("Wien ", acceptor.getLongestMatch("Wien 12345 AB"));
-        assertEquals("Wien Umgebung ", acceptor.getLongestMatch("Wien Umgebung 12345 AB"));
-        assertEquals("Salzburg ", acceptor.getLongestMatch("Salzburg Landtag 12345 AB"));
-    }
-
-    @Test
-    public void getAllMatches() {
-        Acceptor acceptor = createAcceptor();
-        String[] allMatches = acceptor.getAllMatches("Wien Salzburg Linz Graz");
-        assertEquals(2, allMatches.length);
-    }
-
-    @Test
-    public void getTokens() {
+    private static Acceptor createCarDrivingAcceptor() {
         AcceptorBuilder builder = new AcceptorBuilder(true);
         builder.addAcceptedInput("Auto");
         builder.addAcceptedInput("Autobahn");
@@ -65,7 +49,27 @@ public class AcceptorBuilderTest {
         builder.addAcceptedInput("fährt");
         builder.addAcceptedInput("fahr");
         builder.addAcceptedInput("gefahren");
-        Acceptor acceptor = builder.build();
+        return builder.build();
+    }
+
+    @Test
+    public void getLongestMatch() {
+        Acceptor acceptor = createRegionsAcceptor();
+        assertEquals("Wien ", acceptor.getLongestMatch("Wien 12345 AB"));
+        assertEquals("Wien Umgebung ", acceptor.getLongestMatch("Wien Umgebung 12345 AB"));
+        assertEquals("Salzburg ", acceptor.getLongestMatch("Salzburg Landtag 12345 AB"));
+    }
+
+    @Test
+    public void getAllMatches() {
+        Acceptor acceptor = createRegionsAcceptor();
+        String[] allMatches = acceptor.getAllMatches("Wien Salzburg Linz Graz");
+        assertEquals(2, allMatches.length);
+    }
+
+    @Test
+    public void getTokens() {
+        Acceptor acceptor = createCarDrivingAcceptor();
 
         List<Token> result = acceptor.getTokens("Auf der Autobahn fährt man ganz links meist schneller.");
         List<String> values = result.stream().map(Token::getValue).collect(Collectors.toList());
@@ -74,6 +78,22 @@ public class AcceptorBuilderTest {
         assertTrue(values.contains("links"));
         assertTrue(values.contains("schneller"));
         assertEquals(4, result.size());
+    }
+
+    @Test
+    public void getTokens_nullInput() {
+        Acceptor acceptor = createCarDrivingAcceptor();
+        List<Token> tokens = acceptor.getTokens(null);
+        assertNotNull(tokens);
+        assertTrue(tokens.isEmpty());
+    }
+
+    @Test
+    public void getTokens_emptyStringInput() {
+        Acceptor acceptor = createCarDrivingAcceptor();
+        List<Token> tokens = acceptor.getTokens("");
+        assertNotNull(tokens);
+        assertTrue(tokens.isEmpty());
     }
 
     @Test
