@@ -3,6 +3,7 @@ target
 .classpath
 .project
 bin
-cocoon-files
 .metadata
 .recommenders
+.idea
+indoqa-fsa.iml
