@@ -48,8 +48,11 @@ public class TransducerBuilderTest {
             int index = inputs.indexOf(eachOtherInput);
             String expected = index == -1 ? eachOtherInput : outputs.get(index);
 
-            assertEquals("Random input should only be translated if it was part of the original input.", expected,
-                transducer.transduce(eachOtherInput, eachOtherInput));
+            assertEquals(
+                "Random input should only be translated if it was part of the original input.",
+                expected,
+                transducer.transduce(eachOtherInput, eachOtherInput)
+            );
         }
     }
 
@@ -63,5 +66,12 @@ public class TransducerBuilderTest {
 
         List<Token> tokens = transducer.getTransducedTokens("am 29.02. beginnt");
         assertEquals(1, tokens.size());
+        
+        Token firstToken = tokens.get(0);
+        assertEquals("2016-02-09", firstToken.getValue());
+        assertEquals("29.02.", firstToken.getOriginal());
+        assertEquals(3, firstToken.getStart());
+        assertEquals(6, firstToken.getLength());
+        assertEquals(9, firstToken.getEnd());
     }
 }
