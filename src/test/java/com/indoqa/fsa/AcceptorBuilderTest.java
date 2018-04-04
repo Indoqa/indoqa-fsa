@@ -28,8 +28,7 @@ public class AcceptorBuilderTest {
 
     private static final int STRING_COUNT = 10000;
 
-    @Test
-    public void getLongestMatch() {
+    private static Acceptor createAcceptor() {
         AcceptorBuilder builder = new AcceptorBuilder(true);
         builder.addAcceptedInput("Wien ");
         builder.addAcceptedInput("Salzburg ");
@@ -37,11 +36,22 @@ public class AcceptorBuilderTest {
         builder.addAcceptedInput("Wien Umgebung ");
         builder.addAcceptedInput("Salzburg Land ");
         builder.addAcceptedInput("Wels Umgebung ");
+        return builder.build();
+    }
 
-        Acceptor acceptor = builder.build();
+    @Test
+    public void getLongestMatch() {
+        Acceptor acceptor = createAcceptor();
         assertEquals("Wien ", acceptor.getLongestMatch("Wien 12345 AB"));
         assertEquals("Wien Umgebung ", acceptor.getLongestMatch("Wien Umgebung 12345 AB"));
         assertEquals("Salzburg ", acceptor.getLongestMatch("Salzburg Landtag 12345 AB"));
+    }
+
+    @Test
+    public void getAllMatches() {
+        Acceptor acceptor = createAcceptor();
+        String[] allMatches = acceptor.getAllMatches("Wien Salzburg Linz Graz");
+        assertEquals(2, allMatches.length);
     }
 
     @Test
@@ -79,8 +89,11 @@ public class AcceptorBuilderTest {
 
         Set<String> otherInputs = TestUtils.generateRandomStrings(STRING_COUNT);
         for (String eachOtherInput : otherInputs) {
-            assertEquals("Random input should only be accepted if it was part of the original input.", inputs.contains(eachOtherInput),
-                acceptor.accepts(eachOtherInput));
+            assertEquals(
+                "Random input should only be accepted if it was part of the original input.",
+                inputs.contains(eachOtherInput),
+                acceptor.accepts(eachOtherInput)
+            );
         }
     }
 }
