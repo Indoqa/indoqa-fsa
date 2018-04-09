@@ -18,6 +18,8 @@ package com.indoqa.fsa.traversal;
 
 import java.nio.ByteBuffer;
 
+import com.indoqa.fsa.utils.EncodingUtils;
+
 public class Result {
 
     private Match match;
@@ -41,12 +43,20 @@ public class Result {
         return this.match;
     }
 
+    public String getMatched(byte[] bytes, int offset) {
+        return EncodingUtils.getString(bytes, offset, this.matchedLength);
+    }
+
     public int getMatchedLength() {
         return this.matchedLength;
     }
 
     public int getNode() {
         return this.node;
+    }
+
+    public boolean isTerminalMatch() {
+        return this.match == Match.EXACT_MATCH || this.match == Match.PARTIAL_MATCH;
     }
 
     public void setMatch(Match match) {

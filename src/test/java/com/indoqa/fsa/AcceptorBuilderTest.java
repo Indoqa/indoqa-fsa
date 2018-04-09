@@ -20,7 +20,6 @@ import static org.junit.Assert.*;
 
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.junit.Test;
 
@@ -28,42 +27,79 @@ public class AcceptorBuilderTest {
 
     private static final int STRING_COUNT = 10000;
 
-    @Test
-    public void getLongestMatch() {
-        AcceptorBuilder builder = new AcceptorBuilder(true);
-        builder.addAcceptedInput("Wien ");
-        builder.addAcceptedInput("Salzburg ");
-        builder.addAcceptedInput("Wels ");
-        builder.addAcceptedInput("Wien Umgebung ");
-        builder.addAcceptedInput("Salzburg Land ");
-        builder.addAcceptedInput("Wels Umgebung ");
+    private static String[] getValues(List<Token> tokens) {
+        return tokens.stream().map(Token::getValue).toArray(String[]::new);
+    }
 
+    @Test
+    public void getMatch() {
+        AcceptorBuilder builder = new AcceptorBuilder(true);
+        builder.addAcceptedInput("Wien");
+        builder.addAcceptedInput("Salzburg");
+        builder.addAcceptedInput("Wels");
+        builder.addAcceptedInput("Wien Umgebung");
+        builder.addAcceptedInput("Salzburg Land");
+        builder.addAcceptedInput("Wels Umgebung");
         Acceptor acceptor = builder.build();
-        assertEquals("Wien ", acceptor.getLongestMatch("Wien 12345 AB"));
-        assertEquals("Wien Umgebung ", acceptor.getLongestMatch("Wien Umgebung 12345 AB"));
-        assertEquals("Salzburg ", acceptor.getLongestMatch("Salzburg Landtag 12345 AB"));
+
+        assertEquals(STRING_COUNT, STRING_COUNT);
+
+        String sequence = "Wien";
+        assertEquals("Wien", acceptor.getLongestMatch(sequence));
+        assertArrayEquals(new String[] {"Wien"}, acceptor.getAllMatches(sequence));
+
+        sequence = "Wien 12345 AB";
+        assertEquals("Wien", acceptor.getLongestMatch(sequence));
+        assertArrayEquals(new String[] {"Wien"}, acceptor.getAllMatches(sequence));
+
+        sequence = "Wien Umgebung 12345 AB";
+        assertEquals("Wien Umgebung", acceptor.getLongestMatch(sequence));
+        assertArrayEquals(new String[] {"Wien", "Wien Umgebung"}, acceptor.getAllMatches(sequence));
+
+        sequence = "Salzburg Landtag 12345 AB";
+        assertEquals("Salzburg Land", acceptor.getLongestMatch(sequence));
+        assertArrayEquals(new String[] {"Salzburg", "Salzburg Land"}, acceptor.getAllMatches(sequence));
+    }
+
+    @Test
+    public void getOccurrences() {
+        AcceptorBuilder builder = new AcceptorBuilder(true);
+        builder.addAcceptedInput("ar ei");
+        builder.addAcceptedInput("lang");
+        builder.addAcceptedInput("Person");
+        builder.addAcceptedInput("langsam");
+        builder.addAcceptedInput("langsam fahrender");
+        builder.addAcceptedInput("fahrender Personenkraftwagen");
+        builder.addAcceptedInput("Personenkraftwagen mit Anhängerkupplung");
+        Acceptor acceptor = builder.build();
+        String sequence = "Da war ein langsam fahrender Personenkraftwagen mit Anhängerkupplung.";
+
+        assertArrayEquals(new String[] {"ar ei", "lang", "langsam", "langsam fahrender", "fahrender Personenkraftwagen", "Person",
+            "Personenkraftwagen mit Anhängerkupplung"}, getValues(acceptor.getAllOccurrences(sequence)));
+
+        assertArrayEquals(new String[] {"ar ei", "langsam fahrender", "Personenkraftwagen mit Anhängerkupplung"},
+            getValues(acceptor.getLongestOccurrences(sequence)));
     }
 
     @Test
     public void getTokens() {
         AcceptorBuilder builder = new AcceptorBuilder(true);
-        builder.addAcceptedInput("Auto");
-        builder.addAcceptedInput("Autobahn");
-        builder.addAcceptedInput("links");
-        builder.addAcceptedInput("schneller");
-        builder.addAcceptedInput("schnell");
-        builder.addAcceptedInput("fährt");
-        builder.addAcceptedInput("fahr");
-        builder.addAcceptedInput("gefahren");
+        builder.addAcceptedInput("ar ei");
+        builder.addAcceptedInput("lang");
+        builder.addAcceptedInput("Person");
+        builder.addAcceptedInput("langsam");
+        builder.addAcceptedInput("langsam fahrender");
+        builder.addAcceptedInput("fahrender Personenkraftwagen");
+        builder.addAcceptedInput("Personenkraftwagen mit Anhängerkupplung");
         Acceptor acceptor = builder.build();
+        String sequence = "Da war ein langsam fahrender Personenkraftwagen mit Anhängerkupplung.";
 
-        List<Token> result = acceptor.getTokens("Auf der Autobahn fährt man ganz links meist schneller.");
-        List<String> values = result.stream().map(Token::getValue).collect(Collectors.toList());
-        assertTrue(values.contains("Autobahn"));
-        assertTrue(values.contains("fährt"));
-        assertTrue(values.contains("links"));
-        assertTrue(values.contains("schneller"));
-        assertEquals(4, result.size());
+        assertArrayEquals(
+            new String[] {"langsam", "langsam fahrender", "fahrender Personenkraftwagen", "Personenkraftwagen mit Anhängerkupplung"},
+            getValues(acceptor.getAllTokens(sequence)));
+
+        assertArrayEquals(new String[] {"langsam fahrender", "Personenkraftwagen mit Anhängerkupplung"},
+            getValues(acceptor.getLongestTokens(sequence)));
     }
 
     @Test

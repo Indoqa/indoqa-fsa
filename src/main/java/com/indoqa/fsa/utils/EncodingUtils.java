@@ -31,11 +31,43 @@ public final class EncodingUtils {
         return getBytes(value.toString());
     }
 
+    public static byte[] getBytes(CharSequence value, int offset, int length) {
+        return getBytes(value.subSequence(offset, length));
+    }
+
     public static byte[] getBytes(String value) {
         return value.getBytes(CHARSET);
     }
 
     public static String getString(byte[] bytes, int offset, int length) {
         return new String(bytes, offset, length, CHARSET);
+    }
+
+    public static boolean isTokenEnd(byte[] bytes, int offset) {
+        if (offset == bytes.length) {
+            return isWordPart(bytes[offset - 1]);
+        }
+
+        return isWordPart(bytes[offset - 1]) && !isWordPart(bytes[offset]);
+    }
+
+    public static boolean isTokenStart(byte[] bytes, int offset) {
+        if (offset == 0) {
+            return isWordPart(bytes[offset]);
+        }
+
+        return !isWordPart(bytes[offset - 1]) && isWordPart(bytes[offset]);
+    }
+
+    private static boolean isWordPart(byte value) {
+        if ((value & 0xC0) == 0xC0) {
+            return true;
+        }
+
+        if ((value & 0x80) == 0x80) {
+            return true;
+        }
+
+        return Character.isAlphabetic(value) || Character.isDigit(value);
     }
 }

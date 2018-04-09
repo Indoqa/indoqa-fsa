@@ -34,6 +34,18 @@ public class Token {
         return token;
     }
 
+    public int getDistance(Token other) {
+        if (this.end <= other.start) {
+            return other.start - this.end;
+        }
+
+        if (other.end <= this.start) {
+            return this.start - other.end;
+        }
+
+        return 0;
+    }
+
     public int getEnd() {
         return this.end;
     }
