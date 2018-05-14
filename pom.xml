@@ -26,7 +26,7 @@
   </parent>
 
   <artifactId>indoqa-fsa</artifactId>
-  <version>0.1.0</version>
+  <version>0.2.0-SNAPSHOT</version>
 
   <name>Indoqa FSA</name>
   <description>Finite State Automata</description>
@@ -103,6 +103,6 @@
   <scm>
     <connection>scm:git:git@github.com:Indoqa/indoqa-fsa.git</connection>
     <developerConnection>scm:git:git@github.com:Indoqa/indoqa-fsa.git</developerConnection>
-    <tag>indoqa-fsa-0.1.0</tag>
+    <tag>HEAD</tag>
   </scm>
 </project>
