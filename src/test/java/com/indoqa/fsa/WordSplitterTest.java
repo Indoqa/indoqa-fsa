@@ -16,32 +16,71 @@
  */
 package com.indoqa.fsa;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
 
 import org.junit.Test;
 
 public class WordSplitterTest {
 
+    private static void assertEquals(List<Token> tokens, String... values) {
+        assertNotNull("Tokens were null.", tokens);
+
+        String[] tokenValues = tokens
+            .stream()
+            .map(Token::getValue)
+            .map(value -> value.toLowerCase(Locale.ROOT))
+            .toArray(String[]::new);
+        assertArrayEquals("Expected " + Arrays.toString(values) + " but received " + Arrays.toString(tokenValues), values,
+            tokenValues);
+    }
+
     @Test
     public void test() {
-        Acceptor prefixAcceptor = AcceptorBuilder.build(false, "an", "ab", "auf", "zu", "aus");
-        Acceptor wordAcceptor = AcceptorBuilder.build(false, "Gespräch", "einstellung", "verkäufer", "baum", "weihnacht");
+        Acceptor prefixAcceptor = CharAcceptorBuilder.build(false, "an", "ab", "auf", "zu", "aus");
+        Acceptor wordAcceptor = CharAcceptorBuilder.build(false, "Gespräch", "einstellung", "verkäufer", "baum", "weihnacht");
         WordSplitter wordSplitter = new WordSplitter(wordAcceptor, prefixAcceptor);
 
-        Word word = wordSplitter.split("Weihnachtsbaumverkäufer-einstellungsgespräch");
-        assertEquals("gespräch", word.getRight().getValue());
-        assertEquals("Weihnachtsbaumverkäufer-einstellung", word.getLeft().getValue());
+        assertEquals(wordSplitter.getTokens("Weihnachtsbaumverkäufer-einstellungsgespräch"), "weihnacht", "baum", "verkäufer",
+            "einstellung", "gespräch");
+    }
 
-        word = wordSplitter.split(word.getLeft().getValue());
-        assertEquals("einstellung", word.getRight().getValue());
-        assertEquals("Weihnachtsbaumverkäufer", word.getLeft().getValue());
+    @Test
+    public void test1() {
+        Acceptor prefixAcceptor = CharAcceptorBuilder.build(false);
+        Acceptor wordAcceptor = CharAcceptorBuilder.build(false, "donau", "dampf", "schiff", "fahrt", "farbe", "farben",
+            "gesellschaft", "kapitän", "tür", "kajüte", "kajüten");
+        WordSplitter wordSplitter = new WordSplitter(wordAcceptor, prefixAcceptor);
 
-        word = wordSplitter.split(word.getLeft().getValue());
-        assertEquals("verkäufer", word.getRight().getValue());
-        assertEquals("Weihnachtsbaum", word.getLeft().getValue());
+        assertEquals(wordSplitter.getTokens("Donaudampfschifffahrtsgesellschaftskapitänskajütentürfarben"), "donau", "dampf", "schiff",
+            "fahrt", "gesellschaft", "kapitän", "kajüten", "tür", "farben");
+    }
 
-        word = wordSplitter.split(word.getLeft().getValue());
-        assertEquals("baum", word.getRight().getValue());
-        assertEquals("Weihnacht", word.getLeft().getValue());
+    @Test
+    public void test2() {
+        Acceptor prefixAcceptor = CharAcceptorBuilder.build(false, "an");
+        Acceptor wordAcceptor = CharAcceptorBuilder.build(false, "ober", "gen", "darm", "gendarm", "anwärter", "wärter");
+        WordSplitter wordSplitter = new WordSplitter(wordAcceptor, prefixAcceptor);
+
+        assertEquals(wordSplitter.getTokens("Gendarmanwärter"), "gendarm", "anwärter");
+        assertEquals(wordSplitter.getTokens("Obergendarm"), "ober", "gendarm");
+        assertEquals(wordSplitter.getTokens("Obergendarmanwärter"), "ober", "gendarm", "anwärter");
+    }
+
+    @Test
+    public void test3() {
+        Acceptor prefixAcceptor = CharAcceptorBuilder.build(true);
+        Acceptor wordAcceptor = CharAcceptorBuilder.build(true, "nach", "ober", "high", "speed", "teil", "nachteil", "sonder", "zug",
+            "schaffner", "gen", "darm", "gendarm", "armlänge", "länge", "arm");
+        Transducer specialTransducer = TransducerBuilder.build('#', true, "nachteilzug#nacht|eil|zug");
+        WordSplitter wordSplitter = new WordSplitter(wordAcceptor, prefixAcceptor, specialTransducer);
+
+        assertEquals(wordSplitter.getTokens("nachteilzug"), "nacht", "eil", "zug");
+        assertEquals(wordSplitter.getTokens("sondernachteilzug"), "sonder", "nacht", "eil", "zug");
+        assertEquals(wordSplitter.getTokens("highspeednachteilzug"), "high", "speed", "nacht", "eil", "zug");
+        assertEquals(wordSplitter.getTokens("nachteilzugobergendarmlänge"), "nacht", "eil", "zug", "ober", "gendarm", "länge");
     }
 }

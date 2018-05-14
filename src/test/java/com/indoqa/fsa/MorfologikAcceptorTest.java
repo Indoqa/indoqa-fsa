@@ -23,7 +23,7 @@ import java.util.Set;
 
 import org.junit.Test;
 
-public class AcceptorBuilderTest {
+public class MorfologikAcceptorTest {
 
     private static final int STRING_COUNT = 10000;
 
@@ -33,14 +33,14 @@ public class AcceptorBuilderTest {
 
     @Test
     public void getMatch() {
-        AcceptorBuilder builder = new AcceptorBuilder(true);
+        MorfologikAcceptorBuilder builder = new MorfologikAcceptorBuilder(true);
         builder.addAcceptedInput("Wien");
         builder.addAcceptedInput("Salzburg");
         builder.addAcceptedInput("Wels");
         builder.addAcceptedInput("Wien Umgebung");
         builder.addAcceptedInput("Salzburg Land");
         builder.addAcceptedInput("Wels Umgebung");
-        Acceptor acceptor = builder.build();
+        MorfologikAcceptor acceptor = builder.build();
 
         assertEquals(STRING_COUNT, STRING_COUNT);
 
@@ -63,7 +63,7 @@ public class AcceptorBuilderTest {
 
     @Test
     public void getOccurrences() {
-        AcceptorBuilder builder = new AcceptorBuilder(true);
+        MorfologikAcceptorBuilder builder = new MorfologikAcceptorBuilder(true);
         builder.addAcceptedInput("ar ei");
         builder.addAcceptedInput("lang");
         builder.addAcceptedInput("Person");
@@ -71,7 +71,7 @@ public class AcceptorBuilderTest {
         builder.addAcceptedInput("langsam fahrender");
         builder.addAcceptedInput("fahrender Personenkraftwagen");
         builder.addAcceptedInput("Personenkraftwagen mit Anhängerkupplung");
-        Acceptor acceptor = builder.build();
+        MorfologikAcceptor acceptor = builder.build();
         String sequence = "Da war ein langsam fahrender Personenkraftwagen mit Anhängerkupplung.";
 
         assertArrayEquals(new String[] {"ar ei", "lang", "langsam", "langsam fahrender", "fahrender Personenkraftwagen", "Person",
@@ -83,7 +83,7 @@ public class AcceptorBuilderTest {
 
     @Test
     public void getTokens() {
-        AcceptorBuilder builder = new AcceptorBuilder(true);
+        MorfologikAcceptorBuilder builder = new MorfologikAcceptorBuilder(true);
         builder.addAcceptedInput("ar ei");
         builder.addAcceptedInput("lang");
         builder.addAcceptedInput("Person");
@@ -91,7 +91,7 @@ public class AcceptorBuilderTest {
         builder.addAcceptedInput("langsam fahrender");
         builder.addAcceptedInput("fahrender Personenkraftwagen");
         builder.addAcceptedInput("Personenkraftwagen mit Anhängerkupplung");
-        Acceptor acceptor = builder.build();
+        MorfologikAcceptor acceptor = builder.build();
         String sequence = "Da war ein langsam fahrender Personenkraftwagen mit Anhängerkupplung.";
 
         assertArrayEquals(
@@ -105,7 +105,7 @@ public class AcceptorBuilderTest {
     @Test
     public void random() {
         Set<String> inputs = TestUtils.generateRandomStrings(STRING_COUNT);
-        Acceptor acceptor = AcceptorBuilder.build(true, inputs);
+        MorfologikAcceptor acceptor = MorfologikAcceptorBuilder.build(true, inputs);
 
         for (int i = 0; i < 1000; i++) {
             for (String eachInput : inputs) {

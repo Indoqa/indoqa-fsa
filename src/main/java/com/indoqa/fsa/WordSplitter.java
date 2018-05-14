@@ -16,161 +16,155 @@
  */
 package com.indoqa.fsa;
 
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Locale;
+import java.util.List;
 
 public class WordSplitter {
 
-    private static final Infix[] INFIXES = {new Infix("s", "s"), new Infix("s", "s-"), new Infix("", "-")};
+    private static final Interfix[] INTERFIXES = {new Interfix("s"), new Interfix("s-"), new Interfix("-"), new Interfix("es"),
+        new Interfix("es-"), new Interfix("i"), new Interfix("i-"), new Interfix("o"), new Interfix("o-")};
 
     private final Acceptor wordAcceptor;
     private final Acceptor prefixAcceptor;
+    private final Transducer specialTransducer;
     private int minimumWordLength = 2;
 
     public WordSplitter(Acceptor wordAcceptor) {
-        this(wordAcceptor, AcceptorBuilder.build(true, Collections.emptyList()));
+        this(wordAcceptor, CharAcceptorBuilder.build(true, Collections.emptyList()));
     }
 
     public WordSplitter(Acceptor wordAcceptor, Acceptor prefixAcceptor) {
+        this(wordAcceptor, prefixAcceptor, null);
+    }
+
+    public WordSplitter(Acceptor wordAcceptor, Acceptor prefixAcceptor, Transducer specialTransducer) {
         super();
 
         this.wordAcceptor = wordAcceptor;
         this.prefixAcceptor = prefixAcceptor;
+        this.specialTransducer = specialTransducer;
     }
 
-    @SafeVarargs
-    private static Token[] list(Token... value) {
-        return value;
+    private static <T> List<T> list(T value1) {
+        List<T> result = new ArrayList<>();
+        result.add(value1);
+        return result;
     }
 
-    private static InfixSplit removeTrailingInfix(String word) {
-        for (Infix eachInfix : INFIXES) {
+    private static String removeTrailingInterfix(String word) {
+        for (Interfix eachInfix : INTERFIXES) {
             if (eachInfix.matches(word)) {
-                return eachInfix.createSplit(word);
+                return eachInfix.subtractFrom(word);
             }
         }
 
         return null;
+    }
+
+    public List<Token> getTokens(String word) {
+        return this.splitWord(word, Token::create);
+    }
+
+    public List<Integer> getTokenStarts(String word) {
+        return this.splitWord(word, (position, part) -> position);
     }
 
     public void setMinimumWordLength(int minimumWordLength) {
         this.minimumWordLength = minimumWordLength;
     }
 
-    public Word split(String word) {
-        Token[] parts = this.splitWord(word);
-        if (parts == null) {
-            return new Word(word, null, null);
+    private <T> List<T> splitKnownOrSpecial(String word, int offset, Creator<T> creator) {
+        if (this.wordAcceptor.accepts(word) || this.prefixAcceptor.accepts(word)) {
+            return list(creator.create(offset, word));
         }
 
-        if (parts.length == 1) {
-            return new Word(word, null, parts[0]);
+        return this.splitSpecial(word, creator);
+    }
+
+    private <T> List<T> splitSpecial(String word, Creator<T> creator) {
+        if (this.specialTransducer == null) {
+            return null;
         }
 
-        if (parts.length == 2) {
-            return new Word(word, parts[0], parts[1]);
+        String transduce = this.specialTransducer.transduce(word);
+        if (transduce == null) {
+            return null;
         }
 
-        throw new IllegalArgumentException("Received more than 2 parts");
+        List<T> result = new ArrayList<>();
+
+        int start = 0;
+        for (int i = 0; i < transduce.length(); i++) {
+            if (transduce.charAt(i) == '|') {
+                result.add(creator.create(i, transduce.substring(start, i)));
+                start = i + 1;
+            }
+        }
+
+        result.add(creator.create(start, transduce.substring(start)));
+
+        return result;
     }
 
-    private boolean isKnown(String value) {
-        return this.isKnownWord(value) || this.isKnownPrefix(value);
-    }
-
-    private boolean isKnownPrefix(String word) {
-        return this.prefixAcceptor.accepts(word.toLowerCase(Locale.ROOT));
-    }
-
-    private boolean isKnownWord(String word) {
-        return this.wordAcceptor.accepts(word.toLowerCase(Locale.ROOT));
-    }
-
-    private Token[] splitWord(String word) {
-        if (this.isKnownWord(word)) {
-            return list(Token.create(0, word));
+    private <T> List<T> splitWord(String word, Creator<T> creator) {
+        List<T> result = this.splitKnownOrSpecial(word, 0, creator);
+        if (result != null) {
+            return result;
         }
 
         for (int i = this.minimumWordLength; i < word.length() - this.minimumWordLength; i++) {
-            String leftPart = word.substring(0, i);
             String rightPart = word.substring(i);
 
-            if (!this.isKnownWord(rightPart)) {
+            result = this.splitKnownOrSpecial(rightPart, i, creator);
+            if (result == null) {
                 continue;
             }
 
-            if (this.isKnown(leftPart)) {
-                return list(Token.create(0, leftPart), Token.create(i, rightPart));
-            }
+            String leftPart = word.substring(0, i);
 
-            InfixSplit infixSplit = removeTrailingInfix(leftPart);
-            if (infixSplit != null) {
-                if (this.isKnown(infixSplit.getWord())) {
-                    return list(Token.create(0, infixSplit.getWord()), Token.create(i, rightPart));
+            List<T> leftResult = this.splitWord(leftPart, creator);
+            if (leftResult == null) {
+                leftPart = removeTrailingInterfix(leftPart);
+                if (leftPart == null) {
+                    continue;
+                }
+
+                leftResult = this.splitWord(leftPart, creator);
+                if (leftResult == null) {
+                    continue;
                 }
             }
 
-            Token[] leftSplit = this.splitWord(leftPart);
-            if (leftSplit != null) {
-                return list(Token.create(0, leftPart), Token.create(i, rightPart));
-            }
-
-            if (infixSplit != null) {
-                leftSplit = this.splitWord(infixSplit.getWord());
-                if (leftSplit != null) {
-                    return list(Token.create(0, infixSplit.getWord()), Token.create(i, rightPart));
-                }
-            }
+            leftResult.addAll(result);
+            return leftResult;
         }
 
         return null;
     }
 
-    protected static class Infix {
+    @FunctionalInterface
+    private static interface Creator<T> {
 
-        private final String infix;
-        private final String ending;
+        T create(int position, String part);
+    }
 
-        public Infix(String infix, String ending) {
+    private static class Interfix {
+
+        private final String value;
+
+        public Interfix(String value) {
             super();
 
-            this.infix = infix;
-            this.ending = ending;
-        }
-
-        public InfixSplit createSplit(String word) {
-            InfixSplit result = new InfixSplit();
-
-            result.setInfix(this.infix);
-            result.setWord(word.substring(0, word.length() - this.ending.length()));
-
-            return result;
+            this.value = value;
         }
 
         public boolean matches(String word) {
-            return word.endsWith(this.ending);
-        }
-    }
-
-    protected static class InfixSplit {
-
-        private String word;
-        private String infix;
-
-        public String getInfix() {
-            return this.infix;
+            return word.endsWith(this.value);
         }
 
-        public String getWord() {
-            return this.word;
-        }
-
-        public void setInfix(String infix) {
-            this.infix = infix;
-        }
-
-        public void setWord(String word) {
-            this.word = word;
+        public String subtractFrom(String word) {
+            return word.substring(0, word.length() - this.value.length());
         }
     }
 }

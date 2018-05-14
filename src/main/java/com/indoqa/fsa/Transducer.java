@@ -48,6 +48,22 @@ public class Transducer {
         this.caseSensitive = caseSensitive;
     }
 
+    public String getLongestTransducedMatch(String input) {
+        byte[] bytes = this.getBytes(input);
+        Result match = new Result();
+
+        this.traversal.match(match, bytes, 0, bytes.length);
+        if (match.getMatch() != Match.NON_TERMINAL_MATCH) {
+            return null;
+        }
+
+        this.iterator.restartFrom(match.getNode());
+        ByteBuffer byteBuffer = this.iterator.next();
+        String replacement = StandardCharsets.UTF_8.decode(byteBuffer).toString();
+
+        return replacement + EncodingUtils.getString(bytes, match.getMatchedLength(), bytes.length - match.getMatchedLength());
+    }
+
     public List<Token> getTransducedTokens(CharSequence value) {
         List<Token> result = new ArrayList<>();
         Token lastToken = null;

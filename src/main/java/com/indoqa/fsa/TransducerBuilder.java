@@ -59,6 +59,17 @@ public class TransducerBuilder {
         this.dictionaryMetadata = dictionaryMetadataBuilder.build();
     }
 
+    public static Transducer build(char separator, boolean caseSensitive, String... value) {
+        TransducerBuilder builder = new TransducerBuilder(separator, caseSensitive);
+
+        for (String eachValue : value) {
+            String[] parts = eachValue.split(String.valueOf(separator), 2);
+            builder.add(parts[0], parts[1]);
+        }
+
+        return builder.build();
+    }
+
     public static Transducer read(InputStream inputStream) throws IOException {
         char separator = (char) (inputStream.read() & 0xFFFF);
         boolean caseSensitive = (inputStream.read() & 0xFFFF) == 1;
