@@ -106,12 +106,12 @@ public class WordSplitter {
         int start = 0;
         for (int i = 0; i < transduce.length(); i++) {
             if (transduce.charAt(i) == '|') {
-                result.add(creator.create(i, transduce.substring(start, i)));
+                result.add(creator.create(start - result.size(), transduce.substring(start, i)));
                 start = i + 1;
             }
         }
 
-        result.add(creator.create(start, transduce.substring(start)));
+        result.add(creator.create(start - result.size(), transduce.substring(start)));
 
         return result;
     }

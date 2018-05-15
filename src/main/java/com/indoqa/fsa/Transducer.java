@@ -29,20 +29,16 @@ import com.indoqa.fsa.utils.EncodingUtils;
 
 import morfologik.fsa.ByteSequenceIterator;
 import morfologik.stemming.Dictionary;
-import morfologik.stemming.DictionaryLookup;
-import morfologik.stemming.WordData;
 
 public class Transducer {
 
     private final boolean caseSensitive;
     private final TransducerTraversal traversal;
     private final Dictionary dictionary;
-    private final DictionaryLookup dictionaryLookup;
     private final ByteSequenceIterator iterator;
 
     protected Transducer(Dictionary dictionary, boolean caseSensitive) {
         this.dictionary = dictionary;
-        this.dictionaryLookup = new DictionaryLookup(dictionary);
         this.traversal = new TransducerTraversal(this.dictionary.fsa, this.dictionary.metadata.getSeparator());
         this.iterator = new ByteSequenceIterator(this.dictionary.fsa, this.dictionary.fsa.getRootNode());
         this.caseSensitive = caseSensitive;
@@ -113,13 +109,17 @@ public class Transducer {
     }
 
     public String transduce(CharSequence input, String defaultValue) {
-        List<WordData> result = this.dictionaryLookup.lookup(input);
+        byte[] bytes = this.getBytes(input);
+        Result match = new Result();
 
-        if (result.isEmpty()) {
+        this.traversal.match(match, bytes, 0, bytes.length);
+        if (match.getMatch() != Match.NON_TERMINAL_MATCH || match.getMatchedLength() != input.length()) {
             return defaultValue;
         }
 
-        return result.get(0).getStem().toString();
+        this.iterator.restartFrom(match.getNode());
+        ByteBuffer byteBuffer = this.iterator.next();
+        return StandardCharsets.UTF_8.decode(byteBuffer).toString();
     }
 
     private Token createToken(CharSequence original, byte[] bytes, int start, int length) {

@@ -24,9 +24,16 @@ import java.util.List;
 
 import org.junit.Test;
 
-public class TransducerBuilderTest {
+public class TransducerTest {
 
     private static final int STRING_COUNT = 10000;
+
+    @Test
+    public void caseInsensitive() {
+        Transducer transducer = TransducerBuilder.build('#', false, "Nachteilzug#Nacht|eil|zug");
+
+        assertEquals("Nacht|eil|zug", transducer.transduce("Nachteilzug"));
+    }
 
     @Test
     public void test() {
