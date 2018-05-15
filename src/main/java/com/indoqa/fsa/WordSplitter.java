@@ -17,7 +17,6 @@
 package com.indoqa.fsa;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class WordSplitter {
@@ -25,25 +24,35 @@ public class WordSplitter {
     private static final Interfix[] INTERFIXES = {new Interfix("s"), new Interfix("s-"), new Interfix("-"), new Interfix("es"),
         new Interfix("es-"), new Interfix("i"), new Interfix("i-"), new Interfix("o"), new Interfix("o-")};
 
-    private final Acceptor wordAcceptor;
-    private final Acceptor prefixAcceptor;
-    private final Transducer specialTransducer;
+    private final Acceptor wordsAcceptor;
+    private final Acceptor prefixesAcceptor;
+    private final Transducer specialsTransducer;
     private int minimumWordLength = 2;
 
     public WordSplitter(Acceptor wordAcceptor) {
-        this(wordAcceptor, CharAcceptorBuilder.build(true, Collections.emptyList()));
+        this(wordAcceptor, null);
     }
 
     public WordSplitter(Acceptor wordAcceptor, Acceptor prefixAcceptor) {
         this(wordAcceptor, prefixAcceptor, null);
     }
 
-    public WordSplitter(Acceptor wordAcceptor, Acceptor prefixAcceptor, Transducer specialTransducer) {
+    public WordSplitter(Acceptor wordsAcceptor, Acceptor prefixesAcceptor, Transducer specialsTransducer) {
         super();
 
-        this.wordAcceptor = wordAcceptor;
-        this.prefixAcceptor = prefixAcceptor;
-        this.specialTransducer = specialTransducer;
+        this.wordsAcceptor = wordsAcceptor;
+
+        if (prefixesAcceptor == null) {
+            this.prefixesAcceptor = MorfologikAcceptorBuilder.build(true);
+        } else {
+            this.prefixesAcceptor = prefixesAcceptor;
+        }
+
+        if (specialsTransducer == null) {
+            this.specialsTransducer = TransducerBuilder.build('|', true);
+        } else {
+            this.specialsTransducer = specialsTransducer;
+        }
     }
 
     private static <T> List<T> list(T value1) {
@@ -75,7 +84,7 @@ public class WordSplitter {
     }
 
     private <T> List<T> splitKnownOrSpecial(String word, int offset, Creator<T> creator) {
-        if (this.wordAcceptor.accepts(word) || this.prefixAcceptor.accepts(word)) {
+        if (this.wordsAcceptor.accepts(word) || this.prefixesAcceptor.accepts(word)) {
             return list(creator.create(offset, word));
         }
 
@@ -83,11 +92,11 @@ public class WordSplitter {
     }
 
     private <T> List<T> splitSpecial(String word, Creator<T> creator) {
-        if (this.specialTransducer == null) {
+        if (this.specialsTransducer == null) {
             return null;
         }
 
-        String transduce = this.specialTransducer.transduce(word);
+        String transduce = this.specialsTransducer.transduce(word);
         if (transduce == null) {
             return null;
         }

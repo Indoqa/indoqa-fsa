@@ -40,8 +40,8 @@ public class WordSplitterTest {
 
     @Test
     public void test() {
-        Acceptor prefixAcceptor = CharAcceptorBuilder.build(false, "an", "ab", "auf", "zu", "aus");
-        Acceptor wordAcceptor = CharAcceptorBuilder.build(false, "Gespräch", "einstellung", "verkäufer", "baum", "weihnacht");
+        Acceptor prefixAcceptor = MorfologikAcceptorBuilder.build(false, "an", "ab", "auf", "zu", "aus");
+        Acceptor wordAcceptor = MorfologikAcceptorBuilder.build(false, "Gespräch", "einstellung", "verkäufer", "baum", "weihnacht");
         WordSplitter wordSplitter = new WordSplitter(wordAcceptor, prefixAcceptor);
 
         assertEquals(wordSplitter.getTokens("Weihnachtsbaumverkäufer-einstellungsgespräch"), "weihnacht", "baum", "verkäufer",
@@ -50,8 +50,8 @@ public class WordSplitterTest {
 
     @Test
     public void test1() {
-        Acceptor prefixAcceptor = CharAcceptorBuilder.build(false);
-        Acceptor wordAcceptor = CharAcceptorBuilder.build(false, "donau", "dampf", "schiff", "fahrt", "farbe", "farben",
+        Acceptor prefixAcceptor = MorfologikAcceptorBuilder.build(false);
+        Acceptor wordAcceptor = MorfologikAcceptorBuilder.build(false, "donau", "dampf", "schiff", "fahrt", "farbe", "farben",
             "gesellschaft", "kapitän", "tür", "kajüte", "kajüten");
         WordSplitter wordSplitter = new WordSplitter(wordAcceptor, prefixAcceptor);
 
@@ -61,8 +61,8 @@ public class WordSplitterTest {
 
     @Test
     public void test2() {
-        Acceptor prefixAcceptor = CharAcceptorBuilder.build(false, "an");
-        Acceptor wordAcceptor = CharAcceptorBuilder.build(false, "ober", "gen", "darm", "gendarm", "anwärter", "wärter");
+        Acceptor prefixAcceptor = MorfologikAcceptorBuilder.build(false, "an");
+        Acceptor wordAcceptor = MorfologikAcceptorBuilder.build(false, "ober", "gen", "darm", "gendarm", "anwärter", "wärter");
         WordSplitter wordSplitter = new WordSplitter(wordAcceptor, prefixAcceptor);
 
         assertEquals(wordSplitter.getTokens("Gendarmanwärter"), "gendarm", "anwärter");
@@ -72,9 +72,9 @@ public class WordSplitterTest {
 
     @Test
     public void test3() {
-        Acceptor prefixAcceptor = CharAcceptorBuilder.build(true);
-        Acceptor wordAcceptor = CharAcceptorBuilder.build(true, "nach", "ober", "high", "speed", "teil", "nachteil", "sonder", "zug",
-            "schaffner", "gen", "darm", "gendarm", "armlänge", "länge", "arm");
+        Acceptor prefixAcceptor = MorfologikAcceptorBuilder.build(true);
+        Acceptor wordAcceptor = MorfologikAcceptorBuilder.build(true, "nach", "ober", "high", "speed", "teil", "nachteil", "sonder",
+            "zug", "schaffner", "gen", "darm", "gendarm", "armlänge", "länge", "arm");
         Transducer specialTransducer = TransducerBuilder.build('#', true, "nachteilzug#nacht|eil|zug");
         WordSplitter wordSplitter = new WordSplitter(wordAcceptor, prefixAcceptor, specialTransducer);
 

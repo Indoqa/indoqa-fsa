@@ -19,6 +19,7 @@ package com.indoqa.fsa;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
@@ -59,15 +60,19 @@ public class TransducerBuilder {
         this.dictionaryMetadata = dictionaryMetadataBuilder.build();
     }
 
-    public static Transducer build(char separator, boolean caseSensitive, String... value) {
+    public static Transducer build(char separator, boolean caseSensitive, Iterable<String> values) {
         TransducerBuilder builder = new TransducerBuilder(separator, caseSensitive);
 
-        for (String eachValue : value) {
+        for (String eachValue : values) {
             String[] parts = eachValue.split(String.valueOf(separator), 2);
             builder.add(parts[0], parts[1]);
         }
 
         return builder.build();
+    }
+
+    public static Transducer build(char separator, boolean caseSensitive, String... value) {
+        return build(separator, caseSensitive, Arrays.asList(value));
     }
 
     public static Transducer read(InputStream inputStream) throws IOException {
