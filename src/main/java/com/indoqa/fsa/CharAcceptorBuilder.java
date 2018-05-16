@@ -261,7 +261,7 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
         public int getTarget(char label) {
             for (int i = 0; i < this.data.length; i += 3) {
-                if (this.equals(this.data[i], label)) {
+                if (CharAcceptor.equals(this.data[i], label, this.caseSensitive)) {
                     return this.getTarget(i);
                 }
             }
@@ -270,40 +270,7 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         }
 
         public boolean hasSameData(Node otherNode) {
-            if (this.data.length != otherNode.data.length) {
-                return false;
-            }
-
-            for (int i = 0; i < this.data.length; i++) {
-                if (this.data[i] != otherNode.data[i]) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        protected boolean equals(char required, char actual) {
-            if (required == actual) {
-                return true;
-            }
-
-            if (this.caseSensitive) {
-                return false;
-            }
-
-            // If characters don't match but case may be ignored,
-            // try converting both characters to uppercase.
-            char requiredUpper = Character.toUpperCase(required);
-            char actualUpper = Character.toUpperCase(actual);
-            if (requiredUpper == actualUpper) {
-                return true;
-            }
-
-            // Unfortunately, conversion to uppercase does not work properly
-            // for the Georgian alphabet, which has strange rules about case
-            // conversion. So we need to make one last check before exiting.
-            return Character.toLowerCase(requiredUpper) == Character.toLowerCase(actualUpper);
+            return this.getDataHashCode().equals(otherNode.getDataHashCode());
         }
 
         private char getLabel(int index) {

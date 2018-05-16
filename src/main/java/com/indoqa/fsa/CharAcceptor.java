@@ -30,12 +30,33 @@ public class CharAcceptor implements Acceptor {
     protected static final int MASK_LAST = 0x4000;
     protected static final int NODE_SIZE = 3;
 
+    private static final char[] CASE_INSENSITIVE = new char[Character.MAX_VALUE];
+    static {
+        for (char value = 0; value < CASE_INSENSITIVE.length; value++) {
+            if (Character.isLowerCase(value)) {
+                CASE_INSENSITIVE[value] = Character.toUpperCase(value);
+            } else if (Character.isUpperCase(value)) {
+                CASE_INSENSITIVE[value] = Character.toLowerCase(value);
+            } else {
+                CASE_INSENSITIVE[value] = value;
+            }
+        }
+    }
+
     private final char[] data;
     private boolean caseSensitive;
 
     protected CharAcceptor(char[] data, boolean caseSensitive) {
         this.data = data;
         this.caseSensitive = caseSensitive;
+    }
+
+    protected static boolean equals(char required, char actual, boolean caseSensitive) {
+        if (required == actual) {
+            return true;
+        }
+
+        return !caseSensitive && CASE_INSENSITIVE[required] == actual;
     }
 
     @Override
@@ -183,32 +204,9 @@ public class CharAcceptor implements Acceptor {
         return TokenCandidate.eliminateOverlapping(this.getAllTokens(sequence, start, length));
     }
 
-    protected boolean equals(char required, char actual) {
-        if (required == actual) {
-            return true;
-        }
-
-        if (this.caseSensitive) {
-            return false;
-        }
-
-        // If characters don't match but case may be ignored,
-        // try converting both characters to uppercase.
-        char requiredUpper = Character.toUpperCase(required);
-        char actualUpper = Character.toUpperCase(actual);
-        if (requiredUpper == actualUpper) {
-            return true;
-        }
-
-        // Unfortunately, conversion to uppercase does not work properly
-        // for the Georgian alphabet, which has strange rules about case
-        // conversion. So we need to make one last check before exiting.
-        return Character.toLowerCase(requiredUpper) == Character.toLowerCase(actualUpper);
-    }
-
     private int getArc(int index, char label) {
         for (int i = index; index < this.data.length; i += NODE_SIZE) {
-            if (this.equals(this.getLabel(i), label)) {
+            if (equals(this.getLabel(i), label, this.caseSensitive)) {
                 return i;
             }
 
