@@ -59,6 +59,36 @@ public class CharAcceptor implements Acceptor {
         return !caseSensitive && CASE_INSENSITIVE[required] == actual;
     }
 
+    protected static int getArc(char[] data, int index, char label, boolean caseSensitive) {
+        for (int i = index; index < data.length; i += NODE_SIZE) {
+            if (equals(getLabel(data, i), label, caseSensitive)) {
+                return i;
+            }
+
+            if (isLast(data, i)) {
+                break;
+            }
+        }
+
+        return -1;
+    }
+
+    protected static char getLabel(char[] data, int index) {
+        return data[index];
+    }
+
+    protected static int getTarget(char[] data, int index) {
+        return (data[index + ADDRESS_OFFSET] & 0x3FFF) << 16 | data[index + ADDRESS_OFFSET + 1];
+    }
+
+    protected static boolean isLast(char[] data, int index) {
+        return (data[index + FLAGS_OFFSET] & MASK_LAST) != 0;
+    }
+
+    protected static boolean isTerminal(char[] data, int index) {
+        return (data[index + FLAGS_OFFSET] & MASK_TERMINAL) != 0;
+    }
+
     @Override
     public boolean accepts(CharSequence sequence) {
         return this.accepts(sequence, 0, sequence.length());
@@ -70,15 +100,15 @@ public class CharAcceptor implements Acceptor {
         int arc = 0;
 
         for (int i = start; i < start + length; i++) {
-            arc = this.getArc(index, sequence.charAt(i));
+            arc = getArc(this.data, index, sequence.charAt(i), this.caseSensitive);
             if (arc == -1) {
                 return false;
             }
 
-            index = this.getTarget(arc);
+            index = getTarget(this.data, arc);
         }
 
-        return this.isTerminal(arc);
+        return isTerminal(this.data, arc);
     }
 
     @Override
@@ -92,16 +122,16 @@ public class CharAcceptor implements Acceptor {
         int index = 0;
 
         for (int i = start; i < start + length; i++) {
-            index = this.getArc(index, sequence.charAt(i));
+            index = getArc(this.data, index, sequence.charAt(i), this.caseSensitive);
             if (index == -1) {
                 break;
             }
 
-            if (this.isTerminal(index)) {
+            if (isTerminal(this.data, index)) {
                 result.add(sequence.subSequence(start, i + 1).toString());
             }
 
-            index = this.getTarget(index);
+            index = getTarget(this.data, index);
         }
 
         return result.toArray(new String[result.size()]);
@@ -165,16 +195,16 @@ public class CharAcceptor implements Acceptor {
         int index = 0;
 
         for (int i = start; i < start + length; i++) {
-            index = this.getArc(index, sequence.charAt(i));
+            index = getArc(this.data, index, sequence.charAt(i), this.caseSensitive);
             if (index == -1) {
                 break;
             }
 
-            if (this.isTerminal(index)) {
+            if (isTerminal(this.data, index)) {
                 result = i + 1;
             }
 
-            index = this.getTarget(index);
+            index = getTarget(this.data, index);
         }
 
         if (result == 0) {
@@ -202,35 +232,5 @@ public class CharAcceptor implements Acceptor {
     @Override
     public List<Token> getLongestTokens(CharSequence sequence, int start, int length) {
         return TokenCandidate.eliminateOverlapping(this.getAllTokens(sequence, start, length));
-    }
-
-    private int getArc(int index, char label) {
-        for (int i = index; index < this.data.length; i += NODE_SIZE) {
-            if (equals(this.getLabel(i), label, this.caseSensitive)) {
-                return i;
-            }
-
-            if (this.isLast(i)) {
-                break;
-            }
-        }
-
-        return -1;
-    }
-
-    private char getLabel(int index) {
-        return this.data[index];
-    }
-
-    private int getTarget(int index) {
-        return (this.data[index + ADDRESS_OFFSET] & 0x3FFF) << 16 | this.data[index + ADDRESS_OFFSET + 1];
-    }
-
-    private boolean isLast(int index) {
-        return (this.data[index + FLAGS_OFFSET] & MASK_LAST) != 0;
-    }
-
-    private boolean isTerminal(int index) {
-        return (this.data[index + FLAGS_OFFSET] & MASK_TERMINAL) != 0;
     }
 }

@@ -16,7 +16,7 @@
  */
 package com.indoqa.fsa;
 
-import static com.indoqa.fsa.CharAcceptor.*;
+import static com.indoqa.fsa.CharAcceptor.NODE_SIZE;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -203,14 +203,14 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
             int insertIndex = 0;
             for (int i = 0; i < this.data.length; i += NODE_SIZE) {
-                if (this.getLabel(i) < label) {
+                if (CharAcceptor.getLabel(this.data, i) < label) {
                     insertIndex = i + NODE_SIZE;
                 }
             }
 
             System.arraycopy(this.data, 0, newData, 0, insertIndex);
             if (this.data.length > insertIndex) {
-                System.arraycopy(this.data, insertIndex, newData, insertIndex + 3, this.data.length - insertIndex);
+                System.arraycopy(this.data, insertIndex, newData, insertIndex + NODE_SIZE, this.data.length - insertIndex);
             }
 
             this.data = newData;
@@ -220,16 +220,16 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
             this.setTarget(insertIndex, target);
             this.setTerminal(insertIndex, terminal);
 
-            for (int i = 0; i < this.data.length; i += 3) {
-                this.setLast(i, i == this.data.length - 3);
+            for (int i = 0; i < this.data.length; i += NODE_SIZE) {
+                this.setLast(i, i == this.data.length - NODE_SIZE);
             }
         }
 
         public boolean applyReplacements(Map<Integer, Integer> replacements) {
             boolean result = false;
 
-            for (int i = 0; i < this.data.length; i += 3) {
-                int target = this.getTarget(i);
+            for (int i = 0; i < this.data.length; i += NODE_SIZE) {
+                int target = CharAcceptor.getTarget(this.data, i);
 
                 if (!replacements.containsKey(target)) {
                     continue;
@@ -237,8 +237,8 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
                 target = replacements.get(target);
 
-                boolean isTerminal = this.isTerminal(i);
-                boolean isLast = this.isLast(i);
+                boolean isTerminal = CharAcceptor.isTerminal(this.data, i);
+                boolean isLast = CharAcceptor.isLast(this.data, i);
 
                 this.setTarget(i, target);
                 this.setTerminal(i, isTerminal);
@@ -260,10 +260,9 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         }
 
         public int getTarget(char label) {
-            for (int i = 0; i < this.data.length; i += 3) {
-                if (CharAcceptor.equals(this.data[i], label, this.caseSensitive)) {
-                    return this.getTarget(i);
-                }
+            int arc = CharAcceptor.getArc(this.data, 0, label, this.caseSensitive);
+            if (arc != -1) {
+                return CharAcceptor.getTarget(this.data, arc);
             }
 
             return -1;
@@ -273,44 +272,28 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
             return this.getDataHashCode().equals(otherNode.getDataHashCode());
         }
 
-        private char getLabel(int index) {
-            return this.data[index];
-        }
-
-        private int getTarget(int index) {
-            return (this.data[index + ADDRESS_OFFSET] & 0x3FFF) << 16 | this.data[index + ADDRESS_OFFSET + 1];
-        }
-
-        private boolean isLast(int index) {
-            return (this.data[index + FLAGS_OFFSET] & MASK_LAST) != 0;
-        }
-
-        private boolean isTerminal(int index) {
-            return (this.data[index + FLAGS_OFFSET] & MASK_TERMINAL) != 0;
-        }
-
         private void setLabel(int index, char label) {
             this.data[index] = label;
         }
 
         private void setLast(int index, boolean last) {
             if (last) {
-                this.data[index + FLAGS_OFFSET] |= MASK_LAST;
+                this.data[index + CharAcceptor.FLAGS_OFFSET] |= CharAcceptor.MASK_LAST;
             } else {
-                this.data[index + FLAGS_OFFSET] &= ~MASK_LAST;
+                this.data[index + CharAcceptor.FLAGS_OFFSET] &= ~CharAcceptor.MASK_LAST;
             }
         }
 
         private void setTarget(int index, int target) {
-            this.data[index + ADDRESS_OFFSET] = (char) (target >> 16 & 0x3FFF);
-            this.data[index + ADDRESS_OFFSET + 1] = (char) (target & 0xFFFF);
+            this.data[index + CharAcceptor.ADDRESS_OFFSET] = (char) (target >> 16 & 0x3FFF);
+            this.data[index + CharAcceptor.ADDRESS_OFFSET + 1] = (char) (target & 0xFFFF);
         }
 
         private void setTerminal(int index, boolean terminal) {
             if (terminal) {
-                this.data[index + FLAGS_OFFSET] |= MASK_TERMINAL;
+                this.data[index + CharAcceptor.FLAGS_OFFSET] |= CharAcceptor.MASK_TERMINAL;
             } else {
-                this.data[index + FLAGS_OFFSET] &= ~MASK_TERMINAL;
+                this.data[index + CharAcceptor.FLAGS_OFFSET] &= ~CharAcceptor.MASK_TERMINAL;
             }
         }
     }
