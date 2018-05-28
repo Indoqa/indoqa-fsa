@@ -45,18 +45,50 @@ public final class EncodingUtils {
 
     public static boolean isTokenEnd(byte[] bytes, int offset) {
         if (offset == bytes.length) {
-            return isWordPart(bytes[offset - 1]);
+            return true;
+            // return isWordPart(bytes[offset - 1]);
         }
 
-        return isWordPart(bytes[offset - 1]) && !isWordPart(bytes[offset]);
+        return !isWordPart(bytes[offset]);
+    }
+
+    public static boolean isTokenEnd(CharSequence sequence, int offset) {
+        if (offset == sequence.length() - 1) {
+            return true;
+            // return isWordPart(sequence.charAt(offset));
+        }
+
+        return !isWordPart(sequence.charAt(offset + 1));
     }
 
     public static boolean isTokenStart(byte[] bytes, int offset) {
         if (offset == 0) {
-            return isWordPart(bytes[offset]);
+            return true;
+            // return isWordPart(bytes[offset]);
         }
 
-        return !isWordPart(bytes[offset - 1]) && isWordPart(bytes[offset]);
+        return !isWordPart(bytes[offset - 1]);
+    }
+
+    public static boolean isTokenStart(CharSequence sequence, int offset) {
+        if (offset == 0) {
+            return true;
+            // return isWordPart(sequence.charAt(offset));
+        }
+
+        return !isWordPart(sequence.charAt(offset - 1));
+    }
+
+    public static boolean isWordPart(char value) {
+        if ((value & 0xC0) == 0xC0) {
+            return true;
+        }
+
+        if ((value & 0x80) == 0x80) {
+            return true;
+        }
+
+        return Character.isAlphabetic(value) || Character.isDigit(value);
     }
 
     private static boolean isWordPart(byte value) {
@@ -69,33 +101,5 @@ public final class EncodingUtils {
         }
 
         return Character.isAlphabetic(value) || Character.isDigit(value);
-    }
-
-    public static boolean isWordPart(char value) {
-        if ((value & 0xC0) == 0xC0) {
-            return true;
-        }
-    
-        if ((value & 0x80) == 0x80) {
-            return true;
-        }
-    
-        return Character.isAlphabetic(value) || Character.isDigit(value);
-    }
-
-    public static boolean isTokenStart(CharSequence sequence, int offset) {
-        if (offset == 0) {
-            return isWordPart(sequence.charAt(offset));
-        }
-    
-        return !isWordPart(sequence.charAt(offset - 1)) && isWordPart(sequence.charAt(offset));
-    }
-
-    public static boolean isTokenEnd(CharSequence sequence, int offset) {
-        if (offset == sequence.length()) {
-            return isWordPart(sequence.charAt(offset - 1));
-        }
-    
-        return isWordPart(sequence.charAt(offset - 1)) && !isWordPart(sequence.charAt(offset));
     }
 }

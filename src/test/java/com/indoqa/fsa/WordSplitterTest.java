@@ -75,7 +75,7 @@ public class WordSplitterTest {
         Acceptor prefixAcceptor = MorfologikAcceptorBuilder.build(true);
         Acceptor wordAcceptor = MorfologikAcceptorBuilder.build(true, "nach", "ober", "high", "speed", "teil", "nachteil", "sonder",
             "zug", "schaffner", "gen", "darm", "gendarm", "armlänge", "länge", "arm");
-        Transducer specialTransducer = TransducerBuilder.build('#', true, "nachteilzug#nacht|eil|zug");
+        Transducer specialTransducer = MorfologikTransducerBuilder.build('#', true, "nachteilzug#nacht|eil|zug");
         WordSplitter wordSplitter = new WordSplitter(wordAcceptor, prefixAcceptor, specialTransducer);
 
         assertEquals(wordSplitter.getTokens("nachteilzug"), "nacht", "eil", "zug");

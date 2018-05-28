@@ -19,6 +19,7 @@ package com.indoqa.fsa;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.indoqa.fsa.traversal.CharMatch;
 import com.indoqa.fsa.utils.EncodingUtils;
 
 public class CharAcceptor implements Acceptor {
@@ -56,7 +57,7 @@ public class CharAcceptor implements Acceptor {
             return true;
         }
 
-        return !caseSensitive && CASE_INSENSITIVE[required] == actual;
+        return !caseSensitive && required < CASE_INSENSITIVE.length && CASE_INSENSITIVE[required] == actual;
     }
 
     protected static int getArc(char[] data, int index, char label, boolean caseSensitive) {
@@ -172,7 +173,7 @@ public class CharAcceptor implements Acceptor {
 
             String[] allMatches = this.getAllMatches(sequence, i, sequence.length() - i);
             for (String eachMatch : allMatches) {
-                if (!EncodingUtils.isTokenEnd(sequence, i + eachMatch.length())) {
+                if (!EncodingUtils.isTokenEnd(sequence, i + eachMatch.length() - 1)) {
                     continue;
                 }
 
@@ -232,5 +233,71 @@ public class CharAcceptor implements Acceptor {
     @Override
     public List<Token> getLongestTokens(CharSequence sequence, int start, int length) {
         return TokenCandidate.eliminateOverlapping(this.getAllTokens(sequence, start, length));
+    }
+
+    protected String getInput(int startIndex) {
+        StringBuilder stringBuilder = new StringBuilder();
+
+        int index = startIndex;
+        while (true) {
+            char label = getLabel(this.data, index);
+            stringBuilder.append(label);
+
+            if (isTerminal(this.data, index)) {
+                break;
+            }
+            index = getTarget(this.data, index);
+        }
+
+        return stringBuilder.toString();
+    }
+
+    protected void getLongestPrefix(CharSequence sequence, int start, int length, char separator, CharMatch charMatch) {
+        int index = 0;
+        int arc = 0;
+        charMatch.setIndex(-1);
+
+        for (int i = start; i < start + length; i++) {
+            arc = getArc(this.data, index, sequence.charAt(i), this.caseSensitive);
+            if (arc == -1) {
+                return;
+            }
+
+            index = getTarget(this.data, arc);
+
+            if (getArc(this.data, index, separator, this.caseSensitive) != -1) {
+                charMatch.setIndex(index);
+                charMatch.setLength(i - start + 1);
+            }
+        }
+    }
+
+    protected void getLongestTokenPrefix(CharSequence sequence, int start, int length, char separator, CharMatch charMatch) {
+        int index = 0;
+        int arc = 0;
+        charMatch.setIndex(-1);
+
+        for (int i = start; i < start + length; i++) {
+            arc = getArc(this.data, index, sequence.charAt(i), this.caseSensitive);
+            if (arc == -1) {
+                return;
+            }
+
+            index = getTarget(this.data, arc);
+
+            if (EncodingUtils.isTokenEnd(sequence, i) && getArc(this.data, index, separator, this.caseSensitive) != -1) {
+                charMatch.setIndex(index);
+                charMatch.setLength(i - start + 1);
+            }
+        }
+    }
+
+    protected int getNextIndex(char label, int index) {
+        int arc = getArc(this.data, index, label, this.caseSensitive);
+        if (arc == -1) {
+            return -1;
+        }
+
+        return getTarget(this.data, arc);
     }
 }

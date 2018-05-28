@@ -24,13 +24,13 @@ import java.util.List;
 
 import org.junit.Test;
 
-public class TransducerTest {
+public class MorfologikTransducerTest {
 
     private static final int STRING_COUNT = 10000;
 
     @Test
     public void caseInsensitive() {
-        Transducer transducer = TransducerBuilder.build('#', false, "Nachteilzug#Nacht|eil|zug");
+        Transducer transducer = MorfologikTransducerBuilder.build('#', false, "Nachteilzug#Nacht|eil|zug");
 
         assertEquals("Nacht|eil|zug", transducer.transduce("Nachteilzug"));
     }
@@ -40,7 +40,7 @@ public class TransducerTest {
         List<String> inputs = new ArrayList<>(generateRandomStrings(STRING_COUNT));
         List<String> outputs = new ArrayList<>(generateRandomStrings(STRING_COUNT));
 
-        TransducerBuilder transducerBuilder = new TransducerBuilder('|');
+        MorfologikTransducerBuilder transducerBuilder = new MorfologikTransducerBuilder('|');
         for (int i = 0; i < inputs.size(); i++) {
             transducerBuilder.add(inputs.get(i), outputs.get(i));
         }
@@ -62,7 +62,7 @@ public class TransducerTest {
 
     @Test
     public void test2() {
-        TransducerBuilder builder = new TransducerBuilder('|');
+        MorfologikTransducerBuilder builder = new MorfologikTransducerBuilder('|');
         builder.add("29.02.", "2016-02-09");
         builder.add("29.02.2016", "2016-02-09");
         builder.add("29.02. 2016", "2016-02-09");
@@ -70,5 +70,29 @@ public class TransducerTest {
 
         List<Token> tokens = transducer.getTransducedTokens("am 29.02. beginnt");
         assertEquals(1, tokens.size());
+    }
+
+    @Test
+    public void test3() {
+        MorfologikTransducerBuilder builder = new MorfologikTransducerBuilder('|');
+        builder.add("ABC", "CBA");
+        Transducer transducer = builder.build();
+
+        List<Token> tokens = transducer.getTransducedTokens("ABC");
+        assertEquals(1, tokens.size());
+
+        tokens = transducer.getTransducedTokens("ABC ");
+        assertEquals(1, tokens.size());
+
+        tokens = transducer.getTransducedTokens(" ABC ");
+        assertEquals(1, tokens.size());
+    }
+
+    @Test
+    public void transduce() {
+        Transducer transducer = CharTransducerBuilder.build('#', false, "Auto#PKW");
+
+        assertEquals("Autobahn", transducer.transduce("Autobahn"));
+        assertEquals("PKW", transducer.transduce("Auto"));
     }
 }

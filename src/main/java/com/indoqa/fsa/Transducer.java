@@ -16,128 +16,18 @@
  */
 package com.indoqa.fsa;
 
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
-import com.indoqa.fsa.traversal.Result;
-import com.indoqa.fsa.traversal.Result.Match;
-import com.indoqa.fsa.traversal.TransducerTraversal;
-import com.indoqa.fsa.utils.EncodingUtils;
+public interface Transducer {
 
-import morfologik.fsa.ByteSequenceIterator;
-import morfologik.stemming.Dictionary;
+    String getLongestTransducedMatch(CharSequence sequence);
 
-public class Transducer {
+    List<Token> getLongestTransducedTokens(CharSequence sequence);
 
-    private final boolean caseSensitive;
-    private final TransducerTraversal traversal;
-    private final Dictionary dictionary;
-    private final ByteSequenceIterator iterator;
+    List<Token> getTransducedTokens(CharSequence sequence);
 
-    protected Transducer(Dictionary dictionary, boolean caseSensitive) {
-        this.dictionary = dictionary;
-        this.traversal = new TransducerTraversal(this.dictionary.fsa, this.dictionary.metadata.getSeparator());
-        this.iterator = new ByteSequenceIterator(this.dictionary.fsa, this.dictionary.fsa.getRootNode());
-        this.caseSensitive = caseSensitive;
-    }
+    CharSequence transduce(CharSequence sequence);
 
-    public String getLongestTransducedMatch(String input) {
-        byte[] bytes = this.getBytes(input);
-        Result match = new Result();
+    CharSequence transduce(CharSequence sequence, CharSequence defaultValue);
 
-        this.traversal.match(match, bytes, 0, bytes.length);
-        if (match.getMatch() != Match.NON_TERMINAL_MATCH) {
-            return null;
-        }
-
-        this.iterator.restartFrom(match.getNode());
-        ByteBuffer byteBuffer = this.iterator.next();
-        String replacement = StandardCharsets.UTF_8.decode(byteBuffer).toString();
-
-        return replacement + EncodingUtils.getString(bytes, match.getMatchedLength(), bytes.length - match.getMatchedLength());
-    }
-
-    public List<Token> getTransducedTokens(CharSequence value) {
-        List<Token> result = new ArrayList<>();
-        Token lastToken = null;
-
-        byte[] bytes = this.getBytes(value);
-        Result match = new Result();
-
-        for (int i = 0; i < bytes.length - 1; i++) {
-            this.traversal.match(match, bytes, i, bytes.length - i);
-            if (match.getMatch() != Match.NON_TERMINAL_MATCH) {
-                continue;
-            }
-
-            Token token = this.createToken(value, bytes, i, match.getMatchedLength());
-
-            if (token.getEnd() < value.length()) {
-                char nextChar = value.charAt(token.getEnd());
-                if (Character.isLetterOrDigit(nextChar)) {
-                    continue;
-                }
-            }
-
-            this.iterator.restartFrom(match.getNode());
-            ByteBuffer byteBuffer = this.iterator.next();
-            token.setValue(StandardCharsets.UTF_8.decode(byteBuffer).toString());
-
-            if (lastToken == null || lastToken.isDisjunct(token)) {
-                result.add(token);
-                lastToken = token;
-                continue;
-            }
-
-            if (lastToken.getLength() >= token.getLength()) {
-                continue;
-            }
-
-            result.remove(result.size() - 1);
-            result.add(token);
-            lastToken = token;
-        }
-
-        return result;
-    }
-
-    public String transduce(CharSequence input) {
-        return this.transduce(input, null);
-    }
-
-    public String transduce(CharSequence input, String defaultValue) {
-        byte[] bytes = this.getBytes(input);
-        Result match = new Result();
-
-        this.traversal.match(match, bytes, 0, bytes.length);
-        if (match.getMatch() != Match.NON_TERMINAL_MATCH || match.getMatchedLength() != input.length()) {
-            return defaultValue;
-        }
-
-        this.iterator.restartFrom(match.getNode());
-        ByteBuffer byteBuffer = this.iterator.next();
-        return StandardCharsets.UTF_8.decode(byteBuffer).toString();
-    }
-
-    private Token createToken(CharSequence original, byte[] bytes, int start, int length) {
-        int charOffset = EncodingUtils.getString(bytes, 0, start).length();
-
-        if (this.caseSensitive) {
-            return Token.create(charOffset, EncodingUtils.getString(bytes, start, length));
-        }
-
-        final int charLength = EncodingUtils.getString(bytes, start, length).length();
-        return Token.create(charOffset, original.subSequence(charOffset, charOffset + charLength).toString());
-    }
-
-    private byte[] getBytes(CharSequence value) {
-        if (this.caseSensitive) {
-            return EncodingUtils.getBytes(value);
-        }
-
-        return EncodingUtils.getBytes(value.toString().toLowerCase(Locale.ROOT));
-    }
 }

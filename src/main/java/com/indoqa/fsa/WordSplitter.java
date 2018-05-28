@@ -49,7 +49,7 @@ public class WordSplitter {
         }
 
         if (specialsTransducer == null) {
-            this.specialsTransducer = TransducerBuilder.build('|', true);
+            this.specialsTransducer = MorfologikTransducerBuilder.build('|', true);
         } else {
             this.specialsTransducer = specialsTransducer;
         }
@@ -96,7 +96,7 @@ public class WordSplitter {
             return null;
         }
 
-        String transduce = this.specialsTransducer.transduce(word);
+        CharSequence transduce = this.specialsTransducer.transduce(word, null);
         if (transduce == null) {
             return null;
         }
@@ -106,12 +106,12 @@ public class WordSplitter {
         int start = 0;
         for (int i = 0; i < transduce.length(); i++) {
             if (transduce.charAt(i) == '|') {
-                result.add(creator.create(start - result.size(), transduce.substring(start, i)));
+                result.add(creator.create(start - result.size(), transduce.subSequence(start, i).toString()));
                 start = i + 1;
             }
         }
 
-        result.add(creator.create(start - result.size(), transduce.substring(start)));
+        result.add(creator.create(start - result.size(), transduce.subSequence(start, transduce.length()).toString()));
 
         return result;
     }
