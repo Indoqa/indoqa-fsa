@@ -17,6 +17,7 @@
 package com.indoqa.fsa;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import com.indoqa.fsa.traversal.CharMatch;
@@ -55,7 +56,7 @@ public class CharTransducer implements Transducer {
 
     @Override
     public List<Token> getTransducedTokens(CharSequence sequence) {
-        List<Token> result = new ArrayList<>();
+        List<Token> result = null;
 
         CharMatch charMatch = CharMatch.partialMatchAllowed();
 
@@ -69,11 +70,18 @@ public class CharTransducer implements Transducer {
                 continue;
             }
 
+            if (result == null) {
+                result = new ArrayList<>();
+            }
+
             Token token = Token.create(start, sequence.subSequence(start, start + charMatch.getLength()).toString());
             token.setValue(translated.toString());
             result.add(token);
         }
 
+        if (result == null) {
+            return Collections.emptyList();
+        }
         return result;
     }
 

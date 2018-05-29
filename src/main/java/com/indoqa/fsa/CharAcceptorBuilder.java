@@ -19,7 +19,6 @@ package com.indoqa.fsa;
 import static com.indoqa.fsa.CharAcceptor.NODE_SIZE;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class CharAcceptorBuilder implements AcceptorBuilder {
@@ -45,24 +44,13 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     }
 
     public static CharAcceptor read(InputStream inputStream) throws IOException {
-        boolean caseSensitive = (inputStream.read() & 0xFFFF) == 1;
+        DataInputStream dataInputStream = new DataInputStream(inputStream);
 
-        char[] data = new char[4096];
-        int total = 0;
+        boolean caseSensitive = dataInputStream.readBoolean();
 
-        InputStreamReader inputStreamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
-        while (true) {
-            int read = inputStreamReader.read(data, total, data.length - total);
-            if (read == -1) {
-                break;
-            }
-
-            total += read;
-            if (total == data.length) {
-                char[] newData = new char[data.length + 4096];
-                System.arraycopy(data, 0, newData, 0, total);
-                data = newData;
-            }
+        char[] data = new char[dataInputStream.readInt()];
+        for (int i = 0; i < data.length; i++) {
+            data[i] = dataInputStream.readChar();
         }
 
         return new CharAcceptor(data, caseSensitive);
@@ -100,11 +88,17 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
     @Override
     public void write(OutputStream outputStream) throws IOException {
-        outputStream.write(this.caseSensitive ? 1 : 0);
+        char[] data = this.buildData();
 
-        OutputStreamWriter outputStreamWriter = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
-        outputStreamWriter.write(this.buildData());
-        outputStreamWriter.flush();
+        DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
+        dataOutputStream.writeBoolean(this.caseSensitive);
+        dataOutputStream.writeInt(data.length);
+
+        for (char eachChar : data) {
+            dataOutputStream.writeChar(eachChar);
+        }
+
+        dataOutputStream.flush();
     }
 
     private char[] buildData() {
@@ -162,9 +156,16 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
                 }
 
                 String hashCode = node.getDataHashCode();
+                if (hashCode.length() == 0) {
+                    replacements.put(i, -1);
+                    this.nodes.set(i, null);
+                    continue;
+                }
+
                 Integer previous = hashCodes.putIfAbsent(hashCode, i);
                 if (previous != null) {
-                    if (!this.nodes.get(previous).hasSameData(node)) {
+                    Node previousNode = this.nodes.get(previous);
+                    if (!previousNode.hasSameData(node)) {
                         continue;
                     }
 
