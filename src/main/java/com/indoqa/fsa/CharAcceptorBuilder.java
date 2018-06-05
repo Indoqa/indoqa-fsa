@@ -16,21 +16,33 @@
  */
 package com.indoqa.fsa;
 
-import static com.indoqa.fsa.CharAcceptor.NODE_SIZE;
+import static com.indoqa.fsa.CharDataAccessor.*;
 
 import java.io.*;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 public class CharAcceptorBuilder implements AcceptorBuilder {
 
-    private final List<Node> nodes = new ArrayList<>();
+    static final int DEFAULT_CAPACITY_INCREMENT = 16 * 1024;
+
     private final boolean caseSensitive;
 
+    private char[][] nodes = new char[0][];
+    private int nodeCount;
+    private int capacityIncrement;
+
     public CharAcceptorBuilder(boolean caseSensitive) {
+        this(caseSensitive, DEFAULT_CAPACITY_INCREMENT);
+    }
+
+    public CharAcceptorBuilder(boolean caseSensitive, int capacityIncrement) {
         super();
 
         this.caseSensitive = caseSensitive;
-        this.nodes.add(new Node(caseSensitive));
+        this.capacityIncrement = capacityIncrement;
+        this.addNode();
     }
 
     public static CharAcceptor build(boolean caseSensitive, CharSequence... input) {
@@ -64,18 +76,18 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     @Override
     public void addAcceptedInput(Iterable<? extends CharSequence> value) {
         for (CharSequence eachValue : value) {
-            Node node = this.nodes.get(0);
+            int node = 0;
 
             for (int i = 0; i < eachValue.length(); i++) {
-                int target = node.getTarget(eachValue.charAt(i));
-                if (target != -1) {
-                    node = this.nodes.get(target);
+                int arc = CharDataAccessor.getArc(this.nodes[node], 0, eachValue.charAt(i), this.caseSensitive);
+                if (arc != -1) {
+                    node = getTarget(this.nodes[node], arc);
                     continue;
                 }
 
-                node.add(eachValue.charAt(i), this.nodes.size(), i == eachValue.length() - 1);
-                node = new Node(this.caseSensitive);
-                this.nodes.add(node);
+                this.addArc(node, eachValue.charAt(i), this.nodeCount, i == eachValue.length() - 1);
+                node = this.nodeCount;
+                this.addNode();
             }
         }
     }
@@ -101,6 +113,78 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         dataOutputStream.flush();
     }
 
+    private void addArc(int node, char label, int target, boolean terminal) {
+        char[] oldNodeData = this.nodes[node];
+
+        this.nodes[node] = new char[oldNodeData.length + CharDataAccessor.NODE_SIZE];
+        char[] newNodeData = this.nodes[node];
+
+        int insertIndex = 0;
+        for (int i = 0; i < oldNodeData.length; i += CharDataAccessor.NODE_SIZE) {
+            if (CharDataAccessor.getLabel(oldNodeData, i) < label) {
+                insertIndex = i + CharDataAccessor.NODE_SIZE;
+            }
+        }
+
+        System.arraycopy(oldNodeData, 0, newNodeData, 0, insertIndex);
+        if (oldNodeData.length > insertIndex) {
+            System.arraycopy(oldNodeData, insertIndex, newNodeData, insertIndex + CharDataAccessor.NODE_SIZE,
+                oldNodeData.length - insertIndex);
+        }
+
+        CharDataAccessor.setLabel(this.nodes[node], insertIndex, label);
+        CharDataAccessor.setTarget(this.nodes[node], insertIndex, target);
+
+        if (terminal) {
+            CharDataAccessor.setTerminal(this.nodes[node], insertIndex, terminal);
+        }
+
+        if (insertIndex < oldNodeData.length) {
+            return;
+        }
+
+        CharDataAccessor.setLast(this.nodes[node], newNodeData.length - CharDataAccessor.NODE_SIZE, true);
+        if (newNodeData.length > CharDataAccessor.NODE_SIZE) {
+            CharDataAccessor.setLast(this.nodes[node], newNodeData.length - 2 * CharDataAccessor.NODE_SIZE, false);
+        }
+    }
+
+    private void addNode() {
+        if (this.nodeCount + 1 >= this.nodes.length) {
+            char[][] newData = new char[this.nodes.length + this.capacityIncrement][];
+            System.arraycopy(this.nodes, 0, newData, 0, this.nodes.length);
+            this.nodes = newData;
+        }
+
+        this.nodes[this.nodeCount] = new char[0];
+        this.nodeCount++;
+    }
+
+    private boolean applyReplacements(char[] nodeData, Map<Integer, Integer> replacements) {
+        boolean result = false;
+
+        for (int i = 0; i < nodeData.length; i += CharDataAccessor.NODE_SIZE) {
+            int target = getTarget(nodeData, i);
+
+            if (!replacements.containsKey(target)) {
+                continue;
+            }
+
+            int replacement = replacements.get(target);
+
+            boolean isTerminal = isTerminal(nodeData, i);
+            boolean isLast = isLast(nodeData, i);
+
+            CharDataAccessor.setTarget(nodeData, i, replacement);
+            CharDataAccessor.setTerminal(nodeData, i, isTerminal);
+            CharDataAccessor.setLast(nodeData, i, isLast);
+
+            result = true;
+        }
+
+        return result;
+    }
+
     private char[] buildData() {
         this.minify();
 
@@ -108,193 +192,67 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
         Map<Integer, Integer> replacements = new HashMap<>();
 
-        for (int i = 0; i < this.nodes.size(); i++) {
-            Node node = this.nodes.get(i);
+        for (int i = 0; i < this.nodeCount; i++) {
+            char[] node = this.nodes[i];
             if (node == null) {
                 continue;
             }
 
             replacements.put(i, offset);
-            offset += node.data.length;
+            offset += node.length;
         }
 
         char[] result = new char[offset];
         offset = 0;
-        for (Node eachNode : this.nodes) {
-            if (eachNode == null) {
+
+        for (int i = 0; i < this.nodeCount; i++) {
+            char[] node = this.nodes[i];
+            if (node == null) {
                 continue;
             }
 
-            eachNode.applyReplacements(replacements);
+            this.applyReplacements(node, replacements);
 
-            char[] data = eachNode.data;
-
-            while (result.length < offset + data.length) {
-                char[] newResult = new char[result.length + 1024];
-                System.arraycopy(result, 0, newResult, 0, result.length);
-                result = newResult;
-            }
-
-            System.arraycopy(data, 0, result, offset, data.length);
-            offset += data.length;
+            System.arraycopy(node, 0, result, offset, node.length);
+            offset += node.length;
         }
+
         return result;
     }
 
     private void minify() {
         Map<Integer, Integer> replacements = new HashMap<>();
-        Map<String, Integer> hashCodes = new HashMap<>();
+        HashNode hashNode = new HashNode();
 
         while (true) {
-            hashCodes.clear();
             replacements.clear();
 
-            for (int i = 0; i < this.nodes.size(); i++) {
-                Node node = this.nodes.get(i);
+            for (int i = 0; i < this.nodeCount; i++) {
+                char[] node = this.nodes[i];
                 if (node == null) {
                     continue;
                 }
 
-                String hashCode = node.getDataHashCode();
-                if (hashCode.length() == 0) {
-                    replacements.put(i, -1);
-                    this.nodes.set(i, null);
+                int previous = hashNode.addIfMissing(node, i);
+                if (previous == -1 || previous == i) {
                     continue;
                 }
 
-                Integer previous = hashCodes.putIfAbsent(hashCode, i);
-                if (previous != null) {
-                    Node previousNode = this.nodes.get(previous);
-                    if (!previousNode.hasSameData(node)) {
-                        continue;
-                    }
-
-                    replacements.put(i, previous);
-                    this.nodes.set(i, null);
-                }
+                replacements.put(i, previous);
+                this.nodes[i] = null;
             }
 
             if (replacements.isEmpty()) {
                 break;
             }
 
-            for (int i = 0; i < this.nodes.size(); i++) {
-                Node eachNode = this.nodes.get(i);
-                if (eachNode == null) {
-                    continue;
-                }
-                eachNode.applyReplacements(replacements);
-            }
-        }
-    }
-
-    private static class Node {
-
-        private char[] data = new char[0];
-        private String dataHashCode;
-        private final boolean caseSensitive;
-
-        public Node(boolean caseSensitive) {
-            super();
-            this.caseSensitive = caseSensitive;
-        }
-
-        public void add(char label, int target, boolean terminal) {
-            char[] newData = new char[this.data.length + NODE_SIZE];
-
-            int insertIndex = 0;
-            for (int i = 0; i < this.data.length; i += NODE_SIZE) {
-                if (CharAcceptor.getLabel(this.data, i) < label) {
-                    insertIndex = i + NODE_SIZE;
-                }
-            }
-
-            System.arraycopy(this.data, 0, newData, 0, insertIndex);
-            if (this.data.length > insertIndex) {
-                System.arraycopy(this.data, insertIndex, newData, insertIndex + NODE_SIZE, this.data.length - insertIndex);
-            }
-
-            this.data = newData;
-            this.dataHashCode = null;
-
-            this.setLabel(insertIndex, label);
-            this.setTarget(insertIndex, target);
-            this.setTerminal(insertIndex, terminal);
-
-            for (int i = 0; i < this.data.length; i += NODE_SIZE) {
-                this.setLast(i, i == this.data.length - NODE_SIZE);
-            }
-        }
-
-        public boolean applyReplacements(Map<Integer, Integer> replacements) {
-            boolean result = false;
-
-            for (int i = 0; i < this.data.length; i += NODE_SIZE) {
-                int target = CharAcceptor.getTarget(this.data, i);
-
-                if (!replacements.containsKey(target)) {
+            for (int i = 0; i < this.nodeCount; i++) {
+                char[] node = this.nodes[i];
+                if (node == null) {
                     continue;
                 }
 
-                target = replacements.get(target);
-
-                boolean isTerminal = CharAcceptor.isTerminal(this.data, i);
-                boolean isLast = CharAcceptor.isLast(this.data, i);
-
-                this.setTarget(i, target);
-                this.setTerminal(i, isTerminal);
-                this.setLast(i, isLast);
-
-                result = true;
-                this.dataHashCode = null;
-            }
-
-            return result;
-        }
-
-        public String getDataHashCode() {
-            if (this.dataHashCode == null) {
-                this.dataHashCode = new String(this.data);
-            }
-
-            return this.dataHashCode;
-        }
-
-        public int getTarget(char label) {
-            int arc = CharAcceptor.getArc(this.data, 0, label, this.caseSensitive);
-            if (arc != -1) {
-                return CharAcceptor.getTarget(this.data, arc);
-            }
-
-            return -1;
-        }
-
-        public boolean hasSameData(Node otherNode) {
-            return this.getDataHashCode().equals(otherNode.getDataHashCode());
-        }
-
-        private void setLabel(int index, char label) {
-            this.data[index] = label;
-        }
-
-        private void setLast(int index, boolean last) {
-            if (last) {
-                this.data[index + CharAcceptor.FLAGS_OFFSET] |= CharAcceptor.MASK_LAST;
-            } else {
-                this.data[index + CharAcceptor.FLAGS_OFFSET] &= ~CharAcceptor.MASK_LAST;
-            }
-        }
-
-        private void setTarget(int index, int target) {
-            this.data[index + CharAcceptor.ADDRESS_OFFSET] = (char) (target >> 16 & 0x3FFF);
-            this.data[index + CharAcceptor.ADDRESS_OFFSET + 1] = (char) (target & 0xFFFF);
-        }
-
-        private void setTerminal(int index, boolean terminal) {
-            if (terminal) {
-                this.data[index + CharAcceptor.FLAGS_OFFSET] |= CharAcceptor.MASK_TERMINAL;
-            } else {
-                this.data[index + CharAcceptor.FLAGS_OFFSET] &= ~CharAcceptor.MASK_TERMINAL;
+                this.applyReplacements(node, replacements);
             }
         }
     }

@@ -16,6 +16,8 @@
  */
 package com.indoqa.fsa;
 
+import static com.indoqa.fsa.CharDataAccessor.*;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,70 +26,12 @@ import com.indoqa.fsa.utils.EncodingUtils;
 
 public class CharAcceptor implements Acceptor {
 
-    protected static final int ADDRESS_OFFSET = 1;
-    protected static final int FLAGS_OFFSET = 1;
-    protected static final int MASK_SIZE = 0x7FFF;
-    protected static final int MASK_TERMINAL = 0x8000;
-    protected static final int MASK_LAST = 0x4000;
-    protected static final int NODE_SIZE = 3;
-
-    private static final char[] CASE_INSENSITIVE = new char[Character.MAX_VALUE];
-    static {
-        for (char value = 0; value < CASE_INSENSITIVE.length; value++) {
-            if (Character.isLowerCase(value)) {
-                CASE_INSENSITIVE[value] = Character.toUpperCase(value);
-            } else if (Character.isUpperCase(value)) {
-                CASE_INSENSITIVE[value] = Character.toLowerCase(value);
-            } else {
-                CASE_INSENSITIVE[value] = value;
-            }
-        }
-    }
-
     private final char[] data;
     private boolean caseSensitive;
 
     protected CharAcceptor(char[] data, boolean caseSensitive) {
         this.data = data;
         this.caseSensitive = caseSensitive;
-    }
-
-    protected static boolean equals(char required, char actual, boolean caseSensitive) {
-        if (required == actual) {
-            return true;
-        }
-
-        return !caseSensitive && required < CASE_INSENSITIVE.length && CASE_INSENSITIVE[required] == actual;
-    }
-
-    protected static int getArc(char[] data, int index, char label, boolean caseSensitive) {
-        for (int i = index; index < data.length; i += NODE_SIZE) {
-            if (equals(getLabel(data, i), label, caseSensitive)) {
-                return i;
-            }
-
-            if (isLast(data, i)) {
-                break;
-            }
-        }
-
-        return -1;
-    }
-
-    protected static char getLabel(char[] data, int index) {
-        return data[index];
-    }
-
-    protected static int getTarget(char[] data, int index) {
-        return (data[index + ADDRESS_OFFSET] & 0x3FFF) << 16 | data[index + ADDRESS_OFFSET + 1];
-    }
-
-    protected static boolean isLast(char[] data, int index) {
-        return (data[index + FLAGS_OFFSET] & MASK_LAST) != 0;
-    }
-
-    protected static boolean isTerminal(char[] data, int index) {
-        return (data[index + FLAGS_OFFSET] & MASK_TERMINAL) != 0;
     }
 
     @Override
