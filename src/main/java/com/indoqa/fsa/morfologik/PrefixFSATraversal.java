@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa.traversal;
+package com.indoqa.fsa.morfologik;
 
-import static com.indoqa.fsa.traversal.Result.Match.*;
+import static com.indoqa.fsa.morfologik.Result.Match.*;
 
-import com.indoqa.fsa.traversal.Result.Match;
+import com.indoqa.fsa.morfologik.Result.Match;
 
 import morfologik.fsa.FSA;
 import morfologik.fsa.MatchResult;

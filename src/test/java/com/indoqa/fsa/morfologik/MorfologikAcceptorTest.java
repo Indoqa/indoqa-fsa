@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.morfologik;
 
 import static org.junit.Assert.*;
 
@@ -22,6 +22,11 @@ import java.util.List;
 import java.util.Set;
 
 import org.junit.Test;
+
+import com.indoqa.fsa.TestUtils;
+import com.indoqa.fsa.Token;
+import com.indoqa.fsa.morfologik.MorfologikAcceptor;
+import com.indoqa.fsa.morfologik.MorfologikAcceptorBuilder;
 
 public class MorfologikAcceptorTest {
 

@@ -14,11 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.utils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import com.indoqa.fsa.Token;
 
 public class TokenCandidate {
 

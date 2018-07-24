@@ -14,14 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.character;
 
-import static com.indoqa.fsa.CharDataAccessor.*;
+import static com.indoqa.fsa.character.CharDataAccessor.*;
 
 import java.io.*;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
+
+import com.indoqa.fsa.AcceptorBuilder;
 
 public class CharAcceptorBuilder implements AcceptorBuilder {
 
@@ -32,6 +35,8 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     private char[][] nodes = new char[0][];
     private int nodeCount;
     private int capacityIncrement;
+
+    private Consumer<String> messageConsumer;
 
     public CharAcceptorBuilder(boolean caseSensitive) {
         this(caseSensitive, DEFAULT_CAPACITY_INCREMENT);
@@ -96,6 +101,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     public CharAcceptor build() {
         char[] data = this.buildData();
         return new CharAcceptor(data, this.caseSensitive);
+    }
+
+    public void setMessageConsumer(Consumer<String> messageConsumer) {
+        this.messageConsumer = messageConsumer;
     }
 
     @Override
@@ -221,6 +230,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     }
 
     private void minify() {
+        if (this.messageConsumer != null) {
+            this.messageConsumer.accept("Minifying node data ...");
+        }
+
         Map<Integer, Integer> replacements = new HashMap<>();
         HashNode hashNode = new HashNode();
 
@@ -244,6 +257,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
             if (replacements.isEmpty()) {
                 break;
+            }
+
+            if (this.messageConsumer != null) {
+                this.messageConsumer.accept("Applying " + replacements.size() + " replacements...");
             }
 
             for (int i = 0; i < this.nodeCount; i++) {

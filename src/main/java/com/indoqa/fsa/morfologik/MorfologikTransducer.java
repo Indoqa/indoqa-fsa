@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.morfologik;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -22,10 +22,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import com.indoqa.fsa.traversal.Result;
-import com.indoqa.fsa.traversal.Result.Match;
-import com.indoqa.fsa.traversal.TransducerTraversal;
+import com.indoqa.fsa.Token;
+import com.indoqa.fsa.Transducer;
+import com.indoqa.fsa.morfologik.Result.Match;
 import com.indoqa.fsa.utils.EncodingUtils;
+import com.indoqa.fsa.utils.TokenCandidate;
 
 import morfologik.fsa.ByteSequenceIterator;
 import morfologik.stemming.Dictionary;

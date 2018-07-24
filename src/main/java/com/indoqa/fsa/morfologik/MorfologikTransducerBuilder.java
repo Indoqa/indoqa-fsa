@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.morfologik;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,6 +24,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.indoqa.fsa.TransducerBuilder;
 import com.indoqa.fsa.utils.EncodingUtils;
 
 import morfologik.fsa.FSA;

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.character;
 
 import static com.indoqa.fsa.TestUtils.generateRandomStrings;
 import static org.junit.Assert.assertEquals;
@@ -24,13 +24,17 @@ import java.util.List;
 
 import org.junit.Test;
 
-public class MorfologikTransducerTest {
+import com.indoqa.fsa.Token;
+import com.indoqa.fsa.Transducer;
+import com.indoqa.fsa.character.CharTransducerBuilder;
+
+public class CharTransducerTest {
 
     private static final int STRING_COUNT = 10000;
 
     @Test
     public void caseInsensitive() {
-        Transducer transducer = MorfologikTransducerBuilder.build('#', false, "Nachteilzug#Nacht|eil|zug");
+        Transducer transducer = CharTransducerBuilder.build(false, "#", "Nachteilzug#Nacht|eil|zug");
 
         assertEquals("Nacht|eil|zug", transducer.transduce("Nachteilzug"));
     }
@@ -40,7 +44,7 @@ public class MorfologikTransducerTest {
         List<String> inputs = new ArrayList<>(generateRandomStrings(STRING_COUNT));
         List<String> outputs = new ArrayList<>(generateRandomStrings(STRING_COUNT));
 
-        MorfologikTransducerBuilder transducerBuilder = new MorfologikTransducerBuilder('|');
+        CharTransducerBuilder transducerBuilder = new CharTransducerBuilder(true);
         for (int i = 0; i < inputs.size(); i++) {
             transducerBuilder.add(inputs.get(i), outputs.get(i));
         }
@@ -62,7 +66,7 @@ public class MorfologikTransducerTest {
 
     @Test
     public void test2() {
-        MorfologikTransducerBuilder builder = new MorfologikTransducerBuilder('|');
+        CharTransducerBuilder builder = new CharTransducerBuilder(true);
         builder.add("29.02.", "2016-02-09");
         builder.add("29.02.2016", "2016-02-09");
         builder.add("29.02. 2016", "2016-02-09");
@@ -74,7 +78,7 @@ public class MorfologikTransducerTest {
 
     @Test
     public void test3() {
-        MorfologikTransducerBuilder builder = new MorfologikTransducerBuilder('|');
+        CharTransducerBuilder builder = new CharTransducerBuilder(true);
         builder.add("ABC", "CBA");
         Transducer transducer = builder.build();
 
@@ -90,7 +94,7 @@ public class MorfologikTransducerTest {
 
     @Test
     public void transduce() {
-        Transducer transducer = CharTransducerBuilder.build('#', false, "Auto#PKW");
+        Transducer transducer = CharTransducerBuilder.build(false, "#", "Auto#PKW");
 
         assertEquals("Autobahn", transducer.transduce("Autobahn"));
         assertEquals("PKW", transducer.transduce("Auto"));

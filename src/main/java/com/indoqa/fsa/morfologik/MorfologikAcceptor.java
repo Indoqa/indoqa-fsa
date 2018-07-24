@@ -14,18 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.morfologik;
 
-import static com.indoqa.fsa.TokenCandidate.eliminateOverlapping;
-import static com.indoqa.fsa.traversal.Result.Match.EXACT_MATCH;
+import static com.indoqa.fsa.morfologik.Result.Match.EXACT_MATCH;
+import static com.indoqa.fsa.utils.TokenCandidate.eliminateOverlapping;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import com.indoqa.fsa.traversal.AllMatchesFSATraversal;
-import com.indoqa.fsa.traversal.PrefixFSATraversal;
-import com.indoqa.fsa.traversal.Result;
+import com.indoqa.fsa.Acceptor;
+import com.indoqa.fsa.Token;
 import com.indoqa.fsa.utils.EncodingUtils;
 
 import morfologik.fsa.FSA;

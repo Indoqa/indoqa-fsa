@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa.traversal;
+package com.indoqa.fsa.utils;
 
 public class CharMatch {
 

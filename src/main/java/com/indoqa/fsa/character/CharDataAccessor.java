@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.character;
 
 class CharDataAccessor {
 
@@ -99,5 +99,9 @@ class CharDataAccessor {
 
     protected static void setTerminal(char[] data, int index, boolean terminal) {
         setFlag(data, index, MASK_TERMINAL, terminal);
+    }
+
+    protected static char switchCase(char character) {
+        return CASE_INSENSITIVE[character];
     }
 }

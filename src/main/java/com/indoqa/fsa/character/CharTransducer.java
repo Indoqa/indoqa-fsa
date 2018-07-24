@@ -14,14 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.character;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.indoqa.fsa.traversal.CharMatch;
+import com.indoqa.fsa.Token;
+import com.indoqa.fsa.Transducer;
+import com.indoqa.fsa.utils.CharMatch;
 import com.indoqa.fsa.utils.EncodingUtils;
+import com.indoqa.fsa.utils.TokenCandidate;
 
 public class CharTransducer implements Transducer {
 

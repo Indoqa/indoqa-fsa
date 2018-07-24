@@ -14,15 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.character;
 
-import static com.indoqa.fsa.CharDataAccessor.*;
+import static com.indoqa.fsa.character.CharDataAccessor.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import com.indoqa.fsa.traversal.CharMatch;
+import com.indoqa.fsa.Acceptor;
+import com.indoqa.fsa.Token;
+import com.indoqa.fsa.utils.CharMatch;
 import com.indoqa.fsa.utils.EncodingUtils;
+import com.indoqa.fsa.utils.TokenCandidate;
 
 public class CharAcceptor implements Acceptor {
 

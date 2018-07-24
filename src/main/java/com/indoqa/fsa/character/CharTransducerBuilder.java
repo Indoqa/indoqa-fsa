@@ -14,12 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.character;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.function.Consumer;
+
+import com.indoqa.fsa.TransducerBuilder;
 
 public class CharTransducerBuilder implements TransducerBuilder {
 
@@ -41,19 +44,19 @@ public class CharTransducerBuilder implements TransducerBuilder {
         this.separator = separator;
     }
 
-    public static CharTransducer build(char separator, boolean caseSensitive, Iterable<String> values) {
+    public static CharTransducer build(boolean caseSensitive, String splitPattern, Iterable<String> values) {
         CharTransducerBuilder builder = new CharTransducerBuilder(caseSensitive);
 
         for (String eachValue : values) {
-            String[] parts = eachValue.split(String.valueOf(separator), 2);
+            String[] parts = eachValue.split(splitPattern, 2);
             builder.add(parts[0], parts[1]);
         }
 
         return builder.build();
     }
 
-    public static CharTransducer build(char separator, boolean caseSensitive, String... value) {
-        return build(separator, caseSensitive, Arrays.asList(value));
+    public static CharTransducer build(boolean caseSensitive, String splitPattern, String... value) {
+        return build(caseSensitive, splitPattern, Arrays.asList(value));
     }
 
     public static CharTransducer read(InputStream inputStream) throws IOException {
@@ -72,6 +75,10 @@ public class CharTransducerBuilder implements TransducerBuilder {
     public CharTransducer build() {
         CharAcceptor charAcceptor = this.acceptorBuilder.build();
         return new CharTransducer(charAcceptor, Character.MAX_VALUE);
+    }
+
+    public void setMessageConsumer(Consumer<String> messageConsumer) {
+        this.acceptorBuilder.setMessageConsumer(messageConsumer);
     }
 
     @Override
