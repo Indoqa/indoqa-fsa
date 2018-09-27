@@ -54,6 +54,9 @@ public class CharAcceptor implements Acceptor {
             }
 
             index = getTarget(this.data, arc);
+            if (index == 0 && i < start + length - 1) {
+                return false;
+            }
         }
 
         return isTerminal(this.data, arc);
@@ -80,6 +83,9 @@ public class CharAcceptor implements Acceptor {
             }
 
             index = getTarget(this.data, index);
+            if (index == 0) {
+                break;
+            }
         }
 
         return result.toArray(new String[result.size()]);
@@ -94,7 +100,7 @@ public class CharAcceptor implements Acceptor {
     public List<Token> getAllOccurrences(CharSequence sequence, int start, int length) {
         List<Token> result = new ArrayList<>();
 
-        for (int i = start; i < start + length - 1; i++) {
+        for (int i = start; i < start + length; i++) {
             String[] allMatches = this.getAllMatches(sequence, i, sequence.length() - i);
             for (String eachMatch : allMatches) {
                 result.add(Token.create(i, eachMatch));
@@ -153,6 +159,9 @@ public class CharAcceptor implements Acceptor {
             }
 
             index = getTarget(this.data, index);
+            if (index == 0) {
+                break;
+            }
         }
 
         if (result == 0) {
@@ -193,7 +202,11 @@ public class CharAcceptor implements Acceptor {
             if (isTerminal(this.data, index)) {
                 break;
             }
+
             index = getTarget(this.data, index);
+            if (index == 0) {
+                break;
+            }
         }
 
         return stringBuilder.toString();
@@ -211,6 +224,9 @@ public class CharAcceptor implements Acceptor {
             }
 
             index = getTarget(this.data, arc);
+            if (index == 0) {
+                break;
+            }
 
             if (getArc(this.data, index, separator, this.caseSensitive) != -1) {
                 charMatch.setIndex(index);
@@ -221,16 +237,18 @@ public class CharAcceptor implements Acceptor {
 
     protected void getLongestTokenPrefix(CharSequence sequence, int start, int length, char separator, CharMatch charMatch) {
         int index = 0;
-        int arc = 0;
         charMatch.setIndex(-1);
 
         for (int i = start; i < start + length; i++) {
-            arc = getArc(this.data, index, sequence.charAt(i), this.caseSensitive);
-            if (arc == -1) {
+            index = getArc(this.data, index, sequence.charAt(i), this.caseSensitive);
+            if (index == -1) {
                 return;
             }
 
-            index = getTarget(this.data, arc);
+            index = getTarget(this.data, index);
+            if (index == 0) {
+                break;
+            }
 
             if (EncodingUtils.isTokenEnd(sequence, i) && getArc(this.data, index, separator, this.caseSensitive) != -1) {
                 charMatch.setIndex(index);

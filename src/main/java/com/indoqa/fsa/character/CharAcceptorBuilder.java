@@ -84,15 +84,22 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
             int node = 0;
 
             for (int i = 0; i < eachValue.length(); i++) {
+                boolean lastChar = i == eachValue.length() - 1;
+
                 int arc = CharDataAccessor.getArc(this.nodes[node], 0, eachValue.charAt(i), this.caseSensitive);
-                if (arc != -1) {
-                    node = getTarget(this.nodes[node], arc);
+                if (arc == -1) {
+                    this.addArc(node, eachValue.charAt(i), this.nodeCount, lastChar);
+                    node = this.nodeCount;
+                    this.addNode();
                     continue;
                 }
 
-                this.addArc(node, eachValue.charAt(i), this.nodeCount, i == eachValue.length() - 1);
-                node = this.nodeCount;
-                this.addNode();
+                if (lastChar) {
+                    CharDataAccessor.setTerminal(this.nodes[node], arc, true);
+                    break;
+                }
+
+                node = getTarget(this.nodes[node], arc);
             }
         }
     }
@@ -137,7 +144,11 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
         System.arraycopy(oldNodeData, 0, newNodeData, 0, insertIndex);
         if (oldNodeData.length > insertIndex) {
-            System.arraycopy(oldNodeData, insertIndex, newNodeData, insertIndex + CharDataAccessor.NODE_SIZE,
+            System.arraycopy(
+                oldNodeData,
+                insertIndex,
+                newNodeData,
+                insertIndex + CharDataAccessor.NODE_SIZE,
                 oldNodeData.length - insertIndex);
         }
 
@@ -207,8 +218,12 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
                 continue;
             }
 
-            replacements.put(i, offset);
-            offset += node.length;
+            if (node.length == 0) {
+                replacements.put(i, 0);
+            } else {
+                replacements.put(i, offset);
+                offset += node.length;
+            }
         }
 
         char[] result = new char[offset];

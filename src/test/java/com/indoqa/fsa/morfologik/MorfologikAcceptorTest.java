@@ -23,10 +23,10 @@ import java.util.Set;
 
 import org.junit.Test;
 
+import com.indoqa.fsa.Acceptor;
+import com.indoqa.fsa.AcceptorBuilder;
 import com.indoqa.fsa.TestUtils;
 import com.indoqa.fsa.Token;
-import com.indoqa.fsa.morfologik.MorfologikAcceptor;
-import com.indoqa.fsa.morfologik.MorfologikAcceptorBuilder;
 
 public class MorfologikAcceptorTest {
 
@@ -79,10 +79,13 @@ public class MorfologikAcceptorTest {
         MorfologikAcceptor acceptor = builder.build();
         String sequence = "Da war ein langsam fahrender Personenkraftwagen mit Anhängerkupplung.";
 
-        assertArrayEquals(new String[] {"ar ei", "lang", "langsam", "langsam fahrender", "fahrender Personenkraftwagen", "Person",
-            "Personenkraftwagen mit Anhängerkupplung"}, getValues(acceptor.getAllOccurrences(sequence)));
+        assertArrayEquals(
+            new String[] {"ar ei", "lang", "langsam", "langsam fahrender", "fahrender Personenkraftwagen", "Person",
+                "Personenkraftwagen mit Anhängerkupplung"},
+            getValues(acceptor.getAllOccurrences(sequence)));
 
-        assertArrayEquals(new String[] {"ar ei", "langsam fahrender", "Personenkraftwagen mit Anhängerkupplung"},
+        assertArrayEquals(
+            new String[] {"ar ei", "langsam fahrender", "Personenkraftwagen mit Anhängerkupplung"},
             getValues(acceptor.getLongestOccurrences(sequence)));
     }
 
@@ -103,7 +106,8 @@ public class MorfologikAcceptorTest {
             new String[] {"langsam", "langsam fahrender", "fahrender Personenkraftwagen", "Personenkraftwagen mit Anhängerkupplung"},
             getValues(acceptor.getAllTokens(sequence)));
 
-        assertArrayEquals(new String[] {"langsam fahrender", "Personenkraftwagen mit Anhängerkupplung"},
+        assertArrayEquals(
+            new String[] {"langsam fahrender", "Personenkraftwagen mit Anhängerkupplung"},
             getValues(acceptor.getLongestTokens(sequence)));
     }
 
@@ -112,7 +116,7 @@ public class MorfologikAcceptorTest {
         Set<String> inputs = TestUtils.generateRandomStrings(STRING_COUNT);
         MorfologikAcceptor acceptor = MorfologikAcceptorBuilder.build(true, inputs);
 
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 1_000; i++) {
             for (String eachInput : inputs) {
                 assertTrue("Original input string should be accepted.", acceptor.accepts(eachInput));
             }
@@ -120,8 +124,22 @@ public class MorfologikAcceptorTest {
 
         Set<String> otherInputs = TestUtils.generateRandomStrings(STRING_COUNT);
         for (String eachOtherInput : otherInputs) {
-            assertEquals("Random input should only be accepted if it was part of the original input.", inputs.contains(eachOtherInput),
+            assertEquals(
+                "Random input should only be accepted if it was part of the original input.",
+                inputs.contains(eachOtherInput),
                 acceptor.accepts(eachOtherInput));
         }
+    }
+
+    @Test
+    public void shortStrings() {
+        AcceptorBuilder builder = new MorfologikAcceptorBuilder(false);
+
+        String[] PHONEMS = {"ab", "zu", "ver", "aa", "ch", "en", "er", "em", "ti", "fi", "sch", "ern", "in",
+            "nen", "l", "le", "les", "ls", "s", "len"};
+        builder.addAcceptedInput(PHONEMS);
+        Acceptor charAcceptor = builder.build();
+
+        assertTrue(charAcceptor.accepts("s"));
     }
 }

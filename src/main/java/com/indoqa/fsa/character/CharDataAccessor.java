@@ -16,7 +16,7 @@
  */
 package com.indoqa.fsa.character;
 
-class CharDataAccessor {
+public class CharDataAccessor {
 
     protected static final int ADDRESS_OFFSET = 1;
     protected static final int FLAGS_OFFSET = 1;
@@ -36,6 +36,10 @@ class CharDataAccessor {
                 CASE_INSENSITIVE[value] = value;
             }
         }
+    }
+
+    public static char switchCase(char character) {
+        return CASE_INSENSITIVE[character];
     }
 
     protected static boolean equals(char required, char actual, boolean caseSensitive) {
@@ -99,9 +103,5 @@ class CharDataAccessor {
 
     protected static void setTerminal(char[] data, int index, boolean terminal) {
         setFlag(data, index, MASK_TERMINAL, terminal);
-    }
-
-    protected static char switchCase(char character) {
-        return CASE_INSENSITIVE[character];
     }
 }

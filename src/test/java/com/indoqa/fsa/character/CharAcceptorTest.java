@@ -23,10 +23,9 @@ import java.util.Set;
 
 import org.junit.Test;
 
+import com.indoqa.fsa.Acceptor;
 import com.indoqa.fsa.TestUtils;
 import com.indoqa.fsa.Token;
-import com.indoqa.fsa.character.CharAcceptor;
-import com.indoqa.fsa.character.CharAcceptorBuilder;
 
 public class CharAcceptorTest {
 
@@ -79,10 +78,13 @@ public class CharAcceptorTest {
         CharAcceptor acceptor = builder.build();
         String sequence = "Da war ein langsam fahrender Personenkraftwagen mit Anhängerkupplung.";
 
-        assertArrayEquals(new String[] {"ar ei", "lang", "langsam", "langsam fahrender", "fahrender Personenkraftwagen", "Person",
-            "Personenkraftwagen mit Anhängerkupplung"}, getValues(acceptor.getAllOccurrences(sequence)));
+        assertArrayEquals(
+            new String[] {"ar ei", "lang", "langsam", "langsam fahrender", "fahrender Personenkraftwagen", "Person",
+                "Personenkraftwagen mit Anhängerkupplung"},
+            getValues(acceptor.getAllOccurrences(sequence)));
 
-        assertArrayEquals(new String[] {"ar ei", "langsam fahrender", "Personenkraftwagen mit Anhängerkupplung"},
+        assertArrayEquals(
+            new String[] {"ar ei", "langsam fahrender", "Personenkraftwagen mit Anhängerkupplung"},
             getValues(acceptor.getLongestOccurrences(sequence)));
     }
 
@@ -103,8 +105,25 @@ public class CharAcceptorTest {
             new String[] {"langsam", "langsam fahrender", "fahrender Personenkraftwagen", "Personenkraftwagen mit Anhängerkupplung"},
             getValues(acceptor.getAllTokens(sequence)));
 
-        assertArrayEquals(new String[] {"langsam fahrender", "Personenkraftwagen mit Anhängerkupplung"},
+        assertArrayEquals(
+            new String[] {"langsam fahrender", "Personenkraftwagen mit Anhängerkupplung"},
             getValues(acceptor.getLongestTokens(sequence)));
+    }
+
+    @Test
+    public void overlapping() {
+        Acceptor acceptor = CharAcceptorBuilder.build(false, "sch", "s");
+
+        assertTrue(acceptor.accepts("s"));
+        assertFalse(acceptor.accepts("sc"));
+        assertTrue(acceptor.accepts("sch"));
+    }
+
+    @Test
+    public void overlapping1() {
+        Acceptor acceptor = CharAcceptorBuilder.build(false, "be", "bre", "ss");
+
+        assertFalse(acceptor.accepts("sse"));
     }
 
     @Test
@@ -120,8 +139,23 @@ public class CharAcceptorTest {
 
         Set<String> otherInputs = TestUtils.generateRandomStrings(STRING_COUNT);
         for (String eachOtherInput : otherInputs) {
-            assertEquals("Random input should only be accepted if it was part of the original input.", inputs.contains(eachOtherInput),
+            assertEquals(
+                "Random input should only be accepted if it was part of the original input.",
+                inputs.contains(eachOtherInput),
                 acceptor.accepts(eachOtherInput));
         }
+    }
+
+    @Test
+    public void repeating() {
+        Acceptor acceptor = CharAcceptorBuilder.build(false, ".", ",");
+
+        assertArrayEquals(
+            new String[] {".", ".", ".", ".", ".", ","},
+            acceptor.getAllOccurrences(".....,").stream().map(Token::getOriginal).toArray(String[]::new));
+
+        assertArrayEquals(
+            new String[] {".", ".", ".", ".", ".", ","},
+            acceptor.getLongestOccurrences(".....,").stream().map(Token::getOriginal).toArray(String[]::new));
     }
 }
