@@ -14,24 +14,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.utils;
 
-import java.util.List;
+import java.util.Arrays;
 
-public interface Transducer {
+public class NodeData {
 
-    List<Token> getAllTransducedMatches(String word);
+    private final char[] data;
 
-    List<Token> getAllTransducedMatches(String word, int start, int length);
+    public NodeData(char[] data) {
+        super();
+        this.data = data;
+    }
 
-    String getLongestTransducedMatch(CharSequence sequence);
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
 
-    List<Token> getLongestTransducedTokens(CharSequence sequence);
+        return Arrays.equals(this.data, ((NodeData) obj).data);
+    }
 
-    List<Token> getTransducedTokens(CharSequence sequence);
-
-    CharSequence transduce(CharSequence sequence);
-
-    CharSequence transduce(CharSequence sequence, CharSequence defaultValue);
-
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + Arrays.hashCode(this.data);
+        return result;
+    }
 }

@@ -22,9 +22,13 @@ import java.io.*;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 
 import com.indoqa.fsa.AcceptorBuilder;
+import com.indoqa.fsa.utils.IntList;
+import com.indoqa.fsa.utils.NodeData;
 
 public class CharAcceptorBuilder implements AcceptorBuilder {
 
@@ -37,6 +41,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     private int capacityIncrement;
 
     private Consumer<String> messageConsumer;
+
+    private boolean minified;
+    private boolean remapped;
+    private int requiredLength;
 
     public CharAcceptorBuilder(boolean caseSensitive) {
         this(caseSensitive, DEFAULT_CAPACITY_INCREMENT);
@@ -73,39 +81,77 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         return new CharAcceptor(data, caseSensitive);
     }
 
+    private static String getKey(char[] node) {
+        StringBuilder stringBuilder = new StringBuilder();
+
+        if (node.length > 0) {
+            stringBuilder.append(node[0]);
+        }
+
+        if (node.length > CharDataAccessor.NODE_SIZE) {
+            stringBuilder.append(node[CharDataAccessor.NODE_SIZE]);
+        }
+
+        if (node.length > CharDataAccessor.NODE_SIZE * 2) {
+            stringBuilder.append(node[CharDataAccessor.NODE_SIZE * 2]);
+        }
+
+        stringBuilder.append('_');
+        stringBuilder.append(node.length);
+
+        return stringBuilder.toString();
+    }
+
     @Override
     public void addAcceptedInput(CharSequence... value) {
-        this.addAcceptedInput(Arrays.asList(value));
+        for (CharSequence eachValue : value) {
+            this.addAcceptedInput(eachValue);
+        }
+    }
+
+    public void addAcceptedInput(CharSequence value) {
+        this.addAcceptedInput(value, 0, value.length());
+    }
+
+    public void addAcceptedInput(CharSequence value, int start, int length) {
+        if (this.minified || this.remapped) {
+            throw new IllegalStateException("The data have already been minified / remapped.");
+        }
+
+        int node = 0;
+
+        for (int i = start; i < start + length; i++) {
+            boolean lastChar = i == start + length - 1;
+
+            int arc = CharDataAccessor.getArc(this.nodes[node], 0, value.charAt(i), this.caseSensitive);
+            if (arc == -1) {
+                this.addArc(node, value.charAt(i), this.nodeCount, lastChar);
+                node = this.nodeCount;
+                this.addNode();
+                continue;
+            }
+
+            if (lastChar) {
+                CharDataAccessor.setTerminal(this.nodes[node], arc, true);
+                break;
+            }
+
+            node = getTarget(this.nodes[node], arc);
+        }
     }
 
     @Override
     public void addAcceptedInput(Iterable<? extends CharSequence> value) {
         for (CharSequence eachValue : value) {
-            int node = 0;
-
-            for (int i = 0; i < eachValue.length(); i++) {
-                boolean lastChar = i == eachValue.length() - 1;
-
-                int arc = CharDataAccessor.getArc(this.nodes[node], 0, eachValue.charAt(i), this.caseSensitive);
-                if (arc == -1) {
-                    this.addArc(node, eachValue.charAt(i), this.nodeCount, lastChar);
-                    node = this.nodeCount;
-                    this.addNode();
-                    continue;
-                }
-
-                if (lastChar) {
-                    CharDataAccessor.setTerminal(this.nodes[node], arc, true);
-                    break;
-                }
-
-                node = getTarget(this.nodes[node], arc);
-            }
+            this.addAcceptedInput(eachValue);
         }
     }
 
     @Override
     public CharAcceptor build() {
+        this.minify();
+        this.remap();
+
         char[] data = this.buildData();
         return new CharAcceptor(data, this.caseSensitive);
     }
@@ -116,15 +162,14 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
     @Override
     public void write(OutputStream outputStream) throws IOException {
-        char[] data = this.buildData();
+        this.minify();
+        this.remap();
 
         DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
         dataOutputStream.writeBoolean(this.caseSensitive);
-        dataOutputStream.writeInt(data.length);
+        dataOutputStream.writeInt(this.requiredLength);
 
-        for (char eachChar : data) {
-            dataOutputStream.writeChar(eachChar);
-        }
+        this.serialize(dataOutputStream);
 
         dataOutputStream.flush();
     }
@@ -205,10 +250,125 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         return result;
     }
 
-    private char[] buildData() {
-        this.minify();
+    private void applyReplacements(Map<Integer, Integer> replacements) {
+        this.sendMessage("Applying " + replacements.size() + " replacements");
 
+        for (int i = 0; i < this.nodeCount; i++) {
+            char[] node = this.nodes[i];
+            if (node == null) {
+                continue;
+            }
+
+            this.applyReplacements(node, replacements);
+        }
+    }
+
+    private char[] buildData() {
+        char[] data = new char[this.requiredLength];
         int offset = 0;
+
+        for (int i = 0; i < this.nodeCount; i++) {
+            char[] node = this.nodes[i];
+            if (node == null) {
+                continue;
+            }
+
+            System.arraycopy(node, 0, data, offset, node.length);
+            offset += node.length;
+        }
+        return data;
+    }
+
+    private Map<String, IntList> buildGroups() {
+        Map<String, IntList> result = new TreeMap<>();
+
+        for (int i = 0; i < this.nodeCount; i++) {
+            char[] node = this.nodes[i];
+            if (node == null) {
+                continue;
+            }
+
+            String key = getKey(node);
+
+            IntList indexes = result.get(key);
+            if (indexes == null) {
+                indexes = new IntList();
+                result.put(key, indexes);
+            }
+
+            indexes.add(i);
+        }
+
+        return result;
+    }
+
+    private Map<Integer, Integer> findReplacements(IntList group) {
+        Map<Integer, Integer> result = new HashMap<>();
+
+        Map<NodeData, Integer> hashes = new HashMap<>();
+
+        for (int i = 0; i < group.size(); i++) {
+            int eachIndex = group.get(i);
+            char[] node = this.nodes[eachIndex];
+            if (node == null) {
+                continue;
+            }
+
+            Integer previous = hashes.putIfAbsent(new NodeData(node), eachIndex);
+
+            if (previous != null) {
+                result.put(eachIndex, previous);
+            }
+        }
+
+        return result;
+    }
+
+    private void minify() {
+        if (this.minified) {
+            return;
+        }
+
+        this.sendMessage("Minifying " + this.nodeCount + " nodes ...");
+
+        Map<Integer, Integer> replacements = this.replaceEndNodes();
+        this.applyReplacements(replacements);
+
+        Map<String, IntList> groups = this.buildGroups();
+
+        while (true) {
+            replacements.clear();
+
+            for (IntList eachGroup : groups.values()) {
+                if (eachGroup.size() < 2) {
+                    continue;
+                }
+
+                Map<Integer, Integer> groupReplacements = this.findReplacements(eachGroup);
+                for (Entry<Integer, Integer> eachReplacement : groupReplacements.entrySet()) {
+                    this.nodes[eachReplacement.getKey()] = null;
+                }
+
+                replacements.putAll(groupReplacements);
+            }
+
+            if (replacements.isEmpty()) {
+                break;
+            }
+
+            this.applyReplacements(replacements);
+        }
+
+        this.minified = true;
+    }
+
+    private void remap() {
+        if (this.remapped) {
+            return;
+        }
+
+        this.sendMessage("Remapping node addresses ...");
+        this.requiredLength = 0;
 
         Map<Integer, Integer> replacements = new HashMap<>();
 
@@ -221,70 +381,46 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
             if (node.length == 0) {
                 replacements.put(i, 0);
             } else {
-                replacements.put(i, offset);
-                offset += node.length;
+                replacements.put(i, this.requiredLength);
+                this.requiredLength += node.length;
             }
         }
 
-        char[] result = new char[offset];
-        offset = 0;
+        this.applyReplacements(replacements);
 
+        this.remapped = true;
+    }
+
+    private Map<Integer, Integer> replaceEndNodes() {
+        Map<Integer, Integer> result = new HashMap<>();
+
+        for (int i = 0; i < this.nodeCount; i++) {
+            if (this.nodes[i].length != 0) {
+                continue;
+            }
+
+            this.nodes[i] = null;
+            result.put(i, 0);
+        }
+
+        return result;
+    }
+
+    private void sendMessage(String message) {
+        if (this.messageConsumer != null) {
+            this.messageConsumer.accept(message);
+        }
+    }
+
+    private void serialize(DataOutputStream outputStream) throws IOException {
         for (int i = 0; i < this.nodeCount; i++) {
             char[] node = this.nodes[i];
             if (node == null) {
                 continue;
             }
 
-            this.applyReplacements(node, replacements);
-
-            System.arraycopy(node, 0, result, offset, node.length);
-            offset += node.length;
-        }
-
-        return result;
-    }
-
-    private void minify() {
-        if (this.messageConsumer != null) {
-            this.messageConsumer.accept("Minifying node data ...");
-        }
-
-        Map<Integer, Integer> replacements = new HashMap<>();
-        HashNode hashNode = new HashNode();
-
-        while (true) {
-            replacements.clear();
-
-            for (int i = 0; i < this.nodeCount; i++) {
-                char[] node = this.nodes[i];
-                if (node == null) {
-                    continue;
-                }
-
-                int previous = hashNode.addIfMissing(node, i);
-                if (previous == -1 || previous == i) {
-                    continue;
-                }
-
-                replacements.put(i, previous);
-                this.nodes[i] = null;
-            }
-
-            if (replacements.isEmpty()) {
-                break;
-            }
-
-            if (this.messageConsumer != null) {
-                this.messageConsumer.accept("Applying " + replacements.size() + " replacements...");
-            }
-
-            for (int i = 0; i < this.nodeCount; i++) {
-                char[] node = this.nodes[i];
-                if (node == null) {
-                    continue;
-                }
-
-                this.applyReplacements(node, replacements);
+            for (char eachChar : node) {
+                outputStream.writeChar(eachChar);
             }
         }
     }

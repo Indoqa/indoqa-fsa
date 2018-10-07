@@ -39,6 +39,24 @@ public class CharTransducer implements Transducer {
     }
 
     @Override
+    public List<Token> getAllTransducedMatches(String word) {
+        return this.getAllTransducedMatches(word, 0, word.length());
+    }
+
+    @Override
+    public List<Token> getAllTransducedMatches(String word, int start, int length) {
+        List<Token> result = this.charAcceptor.getAllPrefixes(word, start, length, this.separator);
+
+        CharMatch charMatch = CharMatch.partialMatchAllowed();
+        for (Token token : result) {
+            CharSequence transduce = this.transduce(word, start, length, charMatch);
+            token.setValue(transduce.toString());
+        }
+
+        return result;
+    }
+
+    @Override
     public String getLongestTransducedMatch(CharSequence sequence) {
         CharMatch charMatch = CharMatch.partialMatchAllowed();
 

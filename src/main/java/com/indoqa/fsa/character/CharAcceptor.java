@@ -191,6 +191,33 @@ public class CharAcceptor implements Acceptor {
         return TokenCandidate.eliminateOverlapping(this.getAllTokens(sequence, start, length));
     }
 
+    protected List<Token> getAllPrefixes(CharSequence sequence, int start, int length, char separator) {
+        List<Token> result = new ArrayList<>();
+
+        int matchedLength = 0;
+        int index = 0;
+        int arc = 0;
+
+        for (int i = start; i < start + length; i++) {
+            arc = getArc(this.data, index, sequence.charAt(i), this.caseSensitive);
+            if (arc == -1) {
+                break;
+            }
+
+            index = getTarget(this.data, arc);
+            if (index == 0) {
+                break;
+            }
+
+            matchedLength++;
+            if (getArc(this.data, index, separator, this.caseSensitive) != -1) {
+                result.add(Token.create(start, sequence.subSequence(start, start + matchedLength).toString()));
+            }
+        }
+
+        return result;
+    }
+
     protected String getInput(int startIndex) {
         StringBuilder stringBuilder = new StringBuilder();
 

@@ -104,4 +104,9 @@ public class CharDataAccessor {
     protected static void setTerminal(char[] data, int index, boolean terminal) {
         setFlag(data, index, MASK_TERMINAL, terminal);
     }
+
+    public static boolean isDifferentCase(char char1, char char2) {
+        return Character.isUpperCase(char1) && !Character.isUpperCase(char2) ||
+            Character.isLowerCase(char1) && !Character.isLowerCase(char2);
+    }
 }

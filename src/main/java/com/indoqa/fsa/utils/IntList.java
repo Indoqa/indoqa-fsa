@@ -14,24 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indoqa.fsa;
+package com.indoqa.fsa.utils;
 
-import java.util.List;
+public class IntList {
 
-public interface Transducer {
+    private int[] elements = new int[1024];
+    private int size;
 
-    List<Token> getAllTransducedMatches(String word);
+    public void add(int value) {
+        if (this.size == this.elements.length) {
+            this.growCapacity();
+        }
 
-    List<Token> getAllTransducedMatches(String word, int start, int length);
+        this.elements[this.size++] = value;
+    }
 
-    String getLongestTransducedMatch(CharSequence sequence);
+    public int get(int index) {
+        return this.elements[index];
+    }
 
-    List<Token> getLongestTransducedTokens(CharSequence sequence);
+    public int size() {
+        return this.size;
+    }
 
-    List<Token> getTransducedTokens(CharSequence sequence);
-
-    CharSequence transduce(CharSequence sequence);
-
-    CharSequence transduce(CharSequence sequence, CharSequence defaultValue);
-
+    private void growCapacity() {
+        int[] newElements = new int[this.elements.length + 1024];
+        System.arraycopy(this.elements, 0, newElements, 0, this.elements.length);
+        this.elements = newElements;
+    }
 }

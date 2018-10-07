@@ -46,6 +46,16 @@ public class MorfologikTransducer implements Transducer {
     }
 
     @Override
+    public List<Token> getAllTransducedMatches(String word) {
+        return null;
+    }
+
+    @Override
+    public List<Token> getAllTransducedMatches(String word, int start, int length) {
+        return null;
+    }
+
+    @Override
     public String getLongestTransducedMatch(CharSequence sequence) {
         byte[] bytes = this.getBytes(sequence);
         Result match = new Result();
