@@ -26,11 +26,13 @@ import com.indoqa.fsa.TransducerBuilder;
 
 public class CharTransducerBuilder implements TransducerBuilder {
 
+    public static final char DEFAULT_SEPARATOR = Character.MAX_VALUE;
+
     private final CharAcceptorBuilder acceptorBuilder;
     private final char separator;
 
     public CharTransducerBuilder(boolean caseSensitive) {
-        this(caseSensitive, Character.MAX_VALUE);
+        this(caseSensitive, DEFAULT_SEPARATOR);
     }
 
     public CharTransducerBuilder(boolean caseSensitive, char separator) {
@@ -74,7 +76,7 @@ public class CharTransducerBuilder implements TransducerBuilder {
     @Override
     public CharTransducer build() {
         CharAcceptor charAcceptor = this.acceptorBuilder.build();
-        return new CharTransducer(charAcceptor, Character.MAX_VALUE);
+        return new CharTransducer(charAcceptor, DEFAULT_SEPARATOR);
     }
 
     public void setMessageConsumer(Consumer<String> messageConsumer) {
@@ -83,8 +85,8 @@ public class CharTransducerBuilder implements TransducerBuilder {
 
     @Override
     public void write(OutputStream outputStream) throws IOException {
-        outputStream.write(Character.MAX_VALUE);
-        outputStream.write(Character.MAX_VALUE >> 8);
+        outputStream.write(DEFAULT_SEPARATOR);
+        outputStream.write(DEFAULT_SEPARATOR >> 8);
 
         this.acceptorBuilder.write(outputStream);
     }

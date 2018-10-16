@@ -29,8 +29,16 @@ public class IntList {
         this.elements[this.size++] = value;
     }
 
+    public void clear() {
+        this.size = 0;
+    }
+
     public int get(int index) {
         return this.elements[index];
+    }
+
+    public boolean isEmpty() {
+        return this.size == 0;
     }
 
     public int size() {

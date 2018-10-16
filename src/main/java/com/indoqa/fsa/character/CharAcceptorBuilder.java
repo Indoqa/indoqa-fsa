@@ -305,7 +305,7 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     private Map<Integer, Integer> findReplacements(IntList group) {
         Map<Integer, Integer> result = new HashMap<>();
 
-        Map<NodeData, Integer> hashes = new HashMap<>();
+        Map<NodeData, Integer> hashes = new HashMap<>(group.size());
 
         for (int i = 0; i < group.size(); i++) {
             int eachIndex = group.get(i);

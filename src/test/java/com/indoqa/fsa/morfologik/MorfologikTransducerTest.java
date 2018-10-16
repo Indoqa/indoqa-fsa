@@ -26,8 +26,6 @@ import org.junit.Test;
 
 import com.indoqa.fsa.Token;
 import com.indoqa.fsa.Transducer;
-import com.indoqa.fsa.character.CharTransducerBuilder;
-import com.indoqa.fsa.morfologik.MorfologikTransducerBuilder;
 
 public class MorfologikTransducerTest {
 
@@ -35,7 +33,7 @@ public class MorfologikTransducerTest {
 
     @Test
     public void caseInsensitive() {
-        Transducer transducer = MorfologikTransducerBuilder.build('#', false, "Nachteilzug#Nacht|eil|zug");
+        Transducer transducer = MorfologikTransducerBuilder.build(false, "#", "Nachteilzug#Nacht|eil|zug");
 
         assertEquals("Nacht|eil|zug", transducer.transduce("Nachteilzug"));
     }
@@ -60,7 +58,9 @@ public class MorfologikTransducerTest {
             int index = inputs.indexOf(eachOtherInput);
             String expected = index == -1 ? eachOtherInput : outputs.get(index);
 
-            assertEquals("Random input should only be translated if it was part of the original input.", expected,
+            assertEquals(
+                "Random input should only be translated if it was part of the original input.",
+                expected,
                 transducer.transduce(eachOtherInput, eachOtherInput));
         }
     }
@@ -95,7 +95,7 @@ public class MorfologikTransducerTest {
 
     @Test
     public void transduce() {
-        Transducer transducer = CharTransducerBuilder.build(false, "#", "Auto#PKW");
+        Transducer transducer = MorfologikTransducerBuilder.build(false, "#", "Auto#PKW");
 
         assertEquals("Autobahn", transducer.transduce("Autobahn"));
         assertEquals("PKW", transducer.transduce("Auto"));

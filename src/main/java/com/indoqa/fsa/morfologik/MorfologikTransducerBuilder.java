@@ -37,6 +37,8 @@ import morfologik.stemming.EncoderType;
 
 public class MorfologikTransducerBuilder implements TransducerBuilder {
 
+    public static final char DEFAULT_SEPARATOR = 0x7F;
+
     private final Set<byte[]> inputs = new TreeSet<>(FSABuilder.LEXICAL_ORDERING);
 
     private final char separator;
@@ -61,19 +63,19 @@ public class MorfologikTransducerBuilder implements TransducerBuilder {
         this.dictionaryMetadata = dictionaryMetadataBuilder.build();
     }
 
-    public static MorfologikTransducer build(char separator, boolean caseSensitive, Iterable<String> values) {
-        MorfologikTransducerBuilder builder = new MorfologikTransducerBuilder(separator, caseSensitive);
+    public static MorfologikTransducer build(boolean caseSensitive, String splitPattern, Iterable<String> values) {
+        MorfologikTransducerBuilder builder = new MorfologikTransducerBuilder(DEFAULT_SEPARATOR, caseSensitive);
 
         for (String eachValue : values) {
-            String[] parts = eachValue.split(String.valueOf(separator), 2);
+            String[] parts = eachValue.split(splitPattern, 2);
             builder.add(parts[0], parts[1]);
         }
 
         return builder.build();
     }
 
-    public static MorfologikTransducer build(char separator, boolean caseSensitive, String... value) {
-        return build(separator, caseSensitive, Arrays.asList(value));
+    public static MorfologikTransducer build(boolean caseSensitive, String splitPattern, String... value) {
+        return build(caseSensitive, splitPattern, Arrays.asList(value));
     }
 
     public static MorfologikTransducer read(InputStream inputStream) throws IOException {
