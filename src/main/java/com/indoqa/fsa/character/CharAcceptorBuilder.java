@@ -32,7 +32,8 @@ import com.indoqa.fsa.utils.NodeData;
 
 public class CharAcceptorBuilder implements AcceptorBuilder {
 
-    static final int DEFAULT_CAPACITY_INCREMENT = 16 * 1024;
+    public static final int FILE_VERSION = 2;
+    public static final int DEFAULT_CAPACITY_INCREMENT = 16 * 1024;
 
     private final boolean caseSensitive;
 
@@ -70,6 +71,11 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
     public static CharAcceptor read(InputStream inputStream) throws IOException {
         DataInputStream dataInputStream = new DataInputStream(inputStream);
+
+        int fileVersion = dataInputStream.readInt();
+        if (FILE_VERSION != fileVersion) {
+            throw new IllegalArgumentException("Invalid file version. Expected " + FILE_VERSION + ", but found " + fileVersion + ".");
+        }
 
         boolean caseSensitive = dataInputStream.readBoolean();
 
@@ -166,6 +172,7 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         this.remap();
 
         DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
+        dataOutputStream.writeInt(FILE_VERSION);
         dataOutputStream.writeBoolean(this.caseSensitive);
         dataOutputStream.writeInt(this.requiredLength);
 

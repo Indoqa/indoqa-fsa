@@ -62,9 +62,9 @@ public class CharTransducerBuilder implements TransducerBuilder {
     }
 
     public static CharTransducer read(InputStream inputStream) throws IOException {
+        CharAcceptor charAcceptor = CharAcceptorBuilder.read(inputStream);
         char separator = (char) (inputStream.read() & 0xFF | (inputStream.read() & 0xFF) << 8);
 
-        CharAcceptor charAcceptor = CharAcceptorBuilder.read(inputStream);
         return new CharTransducer(charAcceptor, separator);
     }
 
@@ -85,9 +85,9 @@ public class CharTransducerBuilder implements TransducerBuilder {
 
     @Override
     public void write(OutputStream outputStream) throws IOException {
+        this.acceptorBuilder.write(outputStream);
+
         outputStream.write(DEFAULT_SEPARATOR);
         outputStream.write(DEFAULT_SEPARATOR >> 8);
-
-        this.acceptorBuilder.write(outputStream);
     }
 }
