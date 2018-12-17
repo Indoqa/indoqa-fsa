@@ -80,14 +80,6 @@ public final class EncodingUtils {
     }
 
     public static boolean isWordPart(char value) {
-        if ((value & 0xC0) == 0xC0) {
-            return true;
-        }
-
-        if ((value & 0x80) == 0x80) {
-            return true;
-        }
-
         return Character.isAlphabetic(value) || Character.isDigit(value);
     }
 
