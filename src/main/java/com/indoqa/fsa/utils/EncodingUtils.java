@@ -32,7 +32,7 @@ public final class EncodingUtils {
     }
 
     public static byte[] getBytes(CharSequence value, int offset, int length) {
-        return getBytes(value.subSequence(offset, length));
+        return getBytes(value.subSequence(offset, offset + length));
     }
 
     public static byte[] getBytes(String value) {

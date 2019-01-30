@@ -26,7 +26,7 @@ import org.junit.Test;
 
 import com.indoqa.fsa.Token;
 import com.indoqa.fsa.Transducer;
-import com.indoqa.fsa.character.CharTransducerBuilder;
+import com.indoqa.fsa.TransducerBuilder;
 
 public class CharTransducerTest {
 
@@ -40,11 +40,49 @@ public class CharTransducerTest {
     }
 
     @Test
+    public void getAll1() {
+        TransducerBuilder builder = new CharTransducerBuilder(true);
+        builder.add("A", "A1");
+        builder.add("AA", "A2");
+        builder.add("AAA", "A3");
+        builder.add("AAAA", "A4");
+        Transducer transducer = builder.build();
+
+        String sequence = "AAAA";
+        assertEquals(4, transducer.getAllMatches(sequence).size());
+        assertEquals(1, transducer.getAllTokens(sequence).size());
+        assertEquals(4 + 3 + 2 + 1, transducer.getAllOccurrences(sequence).size());
+    }
+
+    @Test
+    public void getAll2() {
+        TransducerBuilder builder = new CharTransducerBuilder(false);
+        builder.add("Auto", "A");
+        Transducer transducer = builder.build();
+
+        String sequence = "Rennauto Auto Automatik";
+        assertEquals(0, transducer.getAllMatches(sequence).size());
+        assertEquals(1, transducer.getAllTokens(sequence).size());
+        assertEquals(3, transducer.getAllOccurrences(sequence).size());
+    }
+
+    @Test
+    public void getAllMatches() {
+        TransducerBuilder builder = new CharTransducerBuilder(true);
+        builder.add("29.02.", "2016-02-09");
+        builder.add("29.02.2016", "2016-02-09");
+        builder.add("29.02. 2016", "2016-02-09");
+        Transducer transducer = builder.build();
+
+        assertEquals(1, transducer.getAllTokens("am 29.02. beginnt").size());
+    }
+
+    @Test
     public void test() {
         List<String> inputs = new ArrayList<>(generateRandomStrings(STRING_COUNT));
         List<String> outputs = new ArrayList<>(generateRandomStrings(STRING_COUNT));
 
-        CharTransducerBuilder transducerBuilder = new CharTransducerBuilder(true);
+        TransducerBuilder transducerBuilder = new CharTransducerBuilder(true);
         for (int i = 0; i < inputs.size(); i++) {
             transducerBuilder.add(inputs.get(i), outputs.get(i));
         }
@@ -59,36 +97,26 @@ public class CharTransducerTest {
             int index = inputs.indexOf(eachOtherInput);
             String expected = index == -1 ? eachOtherInput : outputs.get(index);
 
-            assertEquals("Random input should only be translated if it was part of the original input.", expected,
+            assertEquals(
+                "Random input should only be translated if it was part of the original input.",
+                expected,
                 transducer.transduce(eachOtherInput, eachOtherInput));
         }
     }
 
     @Test
-    public void test2() {
-        CharTransducerBuilder builder = new CharTransducerBuilder(true);
-        builder.add("29.02.", "2016-02-09");
-        builder.add("29.02.2016", "2016-02-09");
-        builder.add("29.02. 2016", "2016-02-09");
-        Transducer transducer = builder.build();
-
-        List<Token> tokens = transducer.getTransducedTokens("am 29.02. beginnt");
-        assertEquals(1, tokens.size());
-    }
-
-    @Test
     public void test3() {
-        CharTransducerBuilder builder = new CharTransducerBuilder(true);
+        TransducerBuilder builder = new CharTransducerBuilder(true);
         builder.add("ABC", "CBA");
         Transducer transducer = builder.build();
 
-        List<Token> tokens = transducer.getTransducedTokens("ABC");
+        List<Token> tokens = transducer.getAllTokens("ABC");
         assertEquals(1, tokens.size());
 
-        tokens = transducer.getTransducedTokens("ABC ");
+        tokens = transducer.getAllTokens("ABC ");
         assertEquals(1, tokens.size());
 
-        tokens = transducer.getTransducedTokens(" ABC ");
+        tokens = transducer.getAllTokens(" ABC ");
         assertEquals(1, tokens.size());
     }
 

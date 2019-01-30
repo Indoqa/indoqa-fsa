@@ -39,17 +39,12 @@ public class CharTransducer implements Transducer {
     }
 
     @Override
-    public List<Token> getAllTransducedMatches(String word) {
-        return this.getAllTransducedMatches(word, 0, word.length());
-    }
-
-    @Override
-    public List<Token> getAllTransducedMatches(String word, int start, int length) {
-        List<Token> result = this.charAcceptor.getAllPrefixes(word, start, length, this.separator);
+    public List<Token> getAllMatches(CharSequence sequence, int start, int length) {
+        List<Token> result = this.charAcceptor.getAllPrefixes(sequence, start, length, this.separator);
 
         CharMatch charMatch = CharMatch.partialMatchAllowed();
         for (Token token : result) {
-            CharSequence transduce = this.transduce(word, start, length, charMatch);
+            CharSequence transduce = this.transduce(token.getValue(), 0, token.getLength(), charMatch);
             token.setValue(transduce.toString());
         }
 
@@ -57,7 +52,39 @@ public class CharTransducer implements Transducer {
     }
 
     @Override
-    public String getLongestTransducedMatch(CharSequence sequence) {
+    public List<Token> getAllTokens(CharSequence sequence, int start, int length) {
+        List<Token> result = null;
+
+        CharMatch charMatch = CharMatch.partialMatchAllowed();
+
+        for (int i = start; i < start + length; i++) {
+            if (!EncodingUtils.isTokenStart(sequence, i)) {
+                continue;
+            }
+
+            CharSequence translated = this.transduceToken(sequence, i, length - i, charMatch);
+            if (translated == null) {
+                continue;
+            }
+
+            if (result == null) {
+                result = new ArrayList<>();
+            }
+
+            Token token = Token.create(i, sequence.subSequence(i, i + charMatch.getLength()).toString());
+            token.setValue(translated.toString());
+            result.add(token);
+        }
+
+        if (result == null) {
+            return Collections.emptyList();
+        }
+
+        return result;
+    }
+
+    @Override
+    public String getLongestMatch(CharSequence sequence) {
         CharMatch charMatch = CharMatch.partialMatchAllowed();
 
         CharSequence transduce = this.transduce(sequence, 0, sequence.length(), charMatch);
@@ -71,44 +98,8 @@ public class CharTransducer implements Transducer {
     }
 
     @Override
-    public List<Token> getLongestTransducedTokens(CharSequence sequence) {
-        return TokenCandidate.eliminateOverlapping(this.getTransducedTokens(sequence));
-    }
-
-    @Override
-    public List<Token> getTransducedTokens(CharSequence sequence) {
-        List<Token> result = null;
-
-        CharMatch charMatch = CharMatch.partialMatchAllowed();
-
-        for (int start = 0; start < sequence.length(); start++) {
-            if (!EncodingUtils.isTokenStart(sequence, start)) {
-                continue;
-            }
-
-            CharSequence translated = this.transduceToken(sequence, start, sequence.length() - start, charMatch);
-            if (translated == null) {
-                continue;
-            }
-
-            if (result == null) {
-                result = new ArrayList<>();
-            }
-
-            Token token = Token.create(start, sequence.subSequence(start, start + charMatch.getLength()).toString());
-            token.setValue(translated.toString());
-            result.add(token);
-        }
-
-        if (result == null) {
-            return Collections.emptyList();
-        }
-        return result;
-    }
-
-    @Override
-    public CharSequence transduce(CharSequence sequence) {
-        return this.transduce(sequence, sequence);
+    public List<Token> getLongestTokens(CharSequence sequence) {
+        return TokenCandidate.eliminateOverlapping(this.getAllTokens(sequence));
     }
 
     @Override

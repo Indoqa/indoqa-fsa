@@ -46,18 +46,69 @@ public class MorfologikTransducer implements Transducer {
     }
 
     @Override
-    public List<Token> getAllTransducedMatches(String word) {
-        return null;
+    public List<Token> getAllMatches(CharSequence sequence, int start, int length) {
+        List<Token> result = new ArrayList<>();
+
+        byte[] bytes = this.getBytes(sequence, start, length);
+        Result match = new Result();
+
+        int maxLength = length;
+        while (maxLength > 0) {
+            this.traversal.match(match, bytes, 0, maxLength);
+            if (match.getMatch() != Match.NON_TERMINAL_MATCH) {
+                break;
+            }
+
+            this.iterator.restartFrom(match.getNode());
+            ByteBuffer byteBuffer = this.iterator.next();
+
+            Token token = this.createToken(sequence, bytes, 0, match.getMatchedLength());
+            token.setStart(token.getStart() + start);
+            token.setValue(StandardCharsets.UTF_8.decode(byteBuffer).toString());
+            result.add(token);
+
+            maxLength = match.getMatchedLength() - 1;
+        }
+
+        return result;
     }
 
     @Override
-    public List<Token> getAllTransducedMatches(String word, int start, int length) {
-        return null;
+    public List<Token> getAllTokens(CharSequence sequence, int start, int length) {
+        List<Token> result = new ArrayList<>();
+
+        byte[] bytes = this.getBytes(sequence, start, length);
+        Result match = new Result();
+
+        for (int i = 0; i < bytes.length - 1; i++) {
+            if (!EncodingUtils.isTokenStart(bytes, i)) {
+                continue;
+            }
+
+            this.traversal.match(match, bytes, i, bytes.length - i);
+            if (match.getMatch() != Match.NON_TERMINAL_MATCH) {
+                continue;
+            }
+
+            if (!EncodingUtils.isTokenEnd(bytes, i + match.getMatchedLength())) {
+                continue;
+            }
+
+            this.iterator.restartFrom(match.getNode());
+            ByteBuffer byteBuffer = this.iterator.next();
+
+            Token token = this.createToken(sequence, bytes, i, match.getMatchedLength());
+            token.setStart(token.getStart() + start);
+            token.setValue(StandardCharsets.UTF_8.decode(byteBuffer).toString());
+            result.add(token);
+        }
+
+        return result;
     }
 
     @Override
-    public String getLongestTransducedMatch(CharSequence sequence) {
-        byte[] bytes = this.getBytes(sequence);
+    public String getLongestMatch(CharSequence sequence) {
+        byte[] bytes = this.getBytes(sequence, 0, sequence.length());
         Result match = new Result();
 
         this.traversal.match(match, bytes, 0, bytes.length);
@@ -73,46 +124,13 @@ public class MorfologikTransducer implements Transducer {
     }
 
     @Override
-    public List<Token> getLongestTransducedTokens(CharSequence sequence) {
-        return TokenCandidate.eliminateOverlapping(this.getTransducedTokens(sequence));
-    }
-
-    @Override
-    public List<Token> getTransducedTokens(CharSequence sequence) {
-        List<Token> result = new ArrayList<>();
-
-        byte[] bytes = this.getBytes(sequence);
-        Result match = new Result();
-
-        for (int i = 0; i < bytes.length - 1; i++) {
-            this.traversal.match(match, bytes, i, bytes.length - i);
-            if (match.getMatch() != Match.NON_TERMINAL_MATCH) {
-                continue;
-            }
-
-            if (!EncodingUtils.isTokenEnd(bytes, i + match.getMatchedLength())) {
-                continue;
-            }
-
-            this.iterator.restartFrom(match.getNode());
-            ByteBuffer byteBuffer = this.iterator.next();
-
-            Token token = this.createToken(sequence, bytes, i, match.getMatchedLength());
-            token.setValue(StandardCharsets.UTF_8.decode(byteBuffer).toString());
-            result.add(token);
-        }
-
-        return result;
-    }
-
-    @Override
-    public CharSequence transduce(CharSequence sequence) {
-        return this.transduce(sequence, sequence);
+    public List<Token> getLongestTokens(CharSequence sequence) {
+        return TokenCandidate.eliminateOverlapping(this.getAllTokens(sequence));
     }
 
     @Override
     public CharSequence transduce(CharSequence sequence, CharSequence defaultValue) {
-        byte[] bytes = this.getBytes(sequence);
+        byte[] bytes = this.getBytes(sequence, 0, sequence.length());
         Result match = new Result();
 
         this.traversal.match(match, bytes, 0, bytes.length);
@@ -136,11 +154,11 @@ public class MorfologikTransducer implements Transducer {
         return Token.create(charOffset, sequence.subSequence(charOffset, charOffset + charLength).toString());
     }
 
-    private byte[] getBytes(CharSequence sequence) {
+    private byte[] getBytes(CharSequence sequence, int offset, int length) {
         if (this.caseSensitive) {
-            return EncodingUtils.getBytes(sequence);
+            return EncodingUtils.getBytes(sequence, offset, length);
         }
 
-        return EncodingUtils.getBytes(sequence.toString().toLowerCase(Locale.ROOT));
+        return EncodingUtils.getBytes(sequence.subSequence(offset, offset + length).toString().toLowerCase(Locale.ROOT));
     }
 }
