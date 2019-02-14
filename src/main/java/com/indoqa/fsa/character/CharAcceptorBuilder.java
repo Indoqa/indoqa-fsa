@@ -19,16 +19,11 @@ package com.indoqa.fsa.character;
 import static com.indoqa.fsa.character.CharDataAccessor.*;
 
 import java.io.*;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.TreeMap;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import com.indoqa.fsa.AcceptorBuilder;
-import com.indoqa.fsa.utils.IntList;
-import com.indoqa.fsa.utils.NodeData;
 
 public class CharAcceptorBuilder implements AcceptorBuilder {
 
@@ -90,16 +85,12 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     private static String getKey(char[] node) {
         StringBuilder stringBuilder = new StringBuilder();
 
-        if (node.length > 0) {
-            stringBuilder.append(node[0]);
-        }
+        for (int i = 0; i < 10; i++) {
+            if (node.length <= CharDataAccessor.NODE_SIZE * i) {
+                break;
+            }
 
-        if (node.length > CharDataAccessor.NODE_SIZE) {
-            stringBuilder.append(node[CharDataAccessor.NODE_SIZE]);
-        }
-
-        if (node.length > CharDataAccessor.NODE_SIZE * 2) {
-            stringBuilder.append(node[CharDataAccessor.NODE_SIZE * 2]);
+            stringBuilder.append(node[CharDataAccessor.NODE_SIZE * i]);
         }
 
         stringBuilder.append('_');
@@ -113,10 +104,6 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         for (CharSequence eachValue : value) {
             this.addAcceptedInput(eachValue);
         }
-    }
-
-    public void addAcceptedInput(CharSequence value) {
-        this.addAcceptedInput(value, 0, value.length());
     }
 
     public void addAcceptedInput(CharSequence value, int start, int length) {
@@ -181,6 +168,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         dataOutputStream.flush();
     }
 
+    private void addAcceptedInput(CharSequence value) {
+        this.addAcceptedInput(value, 0, value.length());
+    }
+
     private void addArc(int node, char label, int target, boolean terminal) {
         char[] oldNodeData = this.nodes[node];
 
@@ -238,11 +229,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         for (int i = 0; i < nodeData.length; i += CharDataAccessor.NODE_SIZE) {
             int target = getTarget(nodeData, i);
 
-            if (!replacements.containsKey(target)) {
+            Integer replacement = replacements.get(target);
+            if (replacement == null) {
                 continue;
             }
-
-            int replacement = replacements.get(target);
 
             boolean isTerminal = isTerminal(nodeData, i);
             boolean isLast = isLast(nodeData, i);
@@ -257,8 +247,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         return result;
     }
 
-    private void applyReplacements(Map<Integer, Integer> replacements) {
+    private Set<String> applyReplacements(Map<Integer, Integer> replacements) {
         this.sendMessage("Applying " + replacements.size() + " replacements");
+
+        Set<String> result = new HashSet<>();
 
         for (int i = 0; i < this.nodeCount; i++) {
             char[] node = this.nodes[i];
@@ -266,8 +258,12 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
                 continue;
             }
 
-            this.applyReplacements(node, replacements);
+            if (this.applyReplacements(node, replacements)) {
+                result.add(getKey(node));
+            }
         }
+
+        return result;
     }
 
     private char[] buildData() {
@@ -286,8 +282,8 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         return data;
     }
 
-    private Map<String, IntList> buildGroups() {
-        Map<String, IntList> result = new TreeMap<>();
+    private Map<String, List<Integer>> buildGroups() {
+        Map<String, List<Integer>> result = new TreeMap<>();
 
         for (int i = 0; i < this.nodeCount; i++) {
             char[] node = this.nodes[i];
@@ -297,9 +293,9 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
             String key = getKey(node);
 
-            IntList indexes = result.get(key);
+            List<Integer> indexes = result.get(key);
             if (indexes == null) {
-                indexes = new IntList();
+                indexes = new ArrayList<>();
                 result.put(key, indexes);
             }
 
@@ -309,22 +305,22 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         return result;
     }
 
-    private Map<Integer, Integer> findReplacements(IntList group) {
+    private Map<Integer, Integer> findReplacements(List<Integer> group) {
         Map<Integer, Integer> result = new HashMap<>();
 
-        Map<NodeData, Integer> hashes = new HashMap<>(group.size());
+        Map<String, Integer> hashes = new ConcurrentHashMap<>(group.size());
 
         for (int i = 0; i < group.size(); i++) {
-            int eachIndex = group.get(i);
+            Integer eachIndex = group.get(i);
             char[] node = this.nodes[eachIndex];
             if (node == null) {
                 continue;
             }
 
-            Integer previous = hashes.putIfAbsent(new NodeData(node), eachIndex);
-
+            Integer previous = hashes.putIfAbsent(new String(node), eachIndex);
             if (previous != null) {
                 result.put(eachIndex, previous);
+                this.nodes[eachIndex] = null;
             }
         }
 
@@ -339,31 +335,22 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         this.sendMessage("Minifying " + this.nodeCount + " nodes ...");
 
         Map<Integer, Integer> replacements = this.replaceEndNodes();
-        this.applyReplacements(replacements);
+        Set<String> changedGroups = this.applyReplacements(replacements);
 
-        Map<String, IntList> groups = this.buildGroups();
+        Map<String, List<Integer>> groups = this.buildGroups();
 
         while (true) {
             replacements.clear();
 
-            for (IntList eachGroup : groups.values()) {
-                if (eachGroup.size() < 2) {
-                    continue;
-                }
-
-                Map<Integer, Integer> groupReplacements = this.findReplacements(eachGroup);
-                for (Entry<Integer, Integer> eachReplacement : groupReplacements.entrySet()) {
-                    this.nodes[eachReplacement.getKey()] = null;
-                }
-
-                replacements.putAll(groupReplacements);
+            for (String eachChangedGroup : changedGroups) {
+                replacements.putAll(this.findReplacements(groups.get(eachChangedGroup)));
             }
 
             if (replacements.isEmpty()) {
                 break;
             }
 
-            this.applyReplacements(replacements);
+            changedGroups = this.applyReplacements(replacements);
         }
 
         this.minified = true;
