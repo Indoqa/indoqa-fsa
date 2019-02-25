@@ -19,7 +19,9 @@ package com.indoqa.fsa.character;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Consumer;
 
 import com.indoqa.fsa.TransducerBuilder;
@@ -66,6 +68,26 @@ public class CharTransducerBuilder implements TransducerBuilder {
         char separator = (char) (inputStream.read() & 0xFF | (inputStream.read() & 0xFF) << 8);
 
         return new CharTransducer(charAcceptor, separator);
+    }
+
+    public void add(Iterable<? extends CharSequence> input, String output) {
+        List<Integer> nodes = new ArrayList<>();
+
+        for (CharSequence eachInput : input) {
+            nodes.add(this.acceptorBuilder.addAcceptedInput(eachInput, 0, eachInput.length(), 0, false));
+        }
+
+        if (nodes.isEmpty()) {
+            return;
+        }
+
+        int separatorNode = this.acceptorBuilder.addAcceptedInput(String.valueOf(this.separator), 0, 1, nodes.get(0), false);
+
+        for (int i = 1; i < nodes.size(); i++) {
+            this.acceptorBuilder.addArc(nodes.get(i), this.separator, separatorNode, false);
+        }
+
+        this.acceptorBuilder.addAcceptedInput(output, 0, output.length(), separatorNode, true);
     }
 
     @Override

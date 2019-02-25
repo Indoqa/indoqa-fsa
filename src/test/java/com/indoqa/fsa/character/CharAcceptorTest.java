@@ -29,7 +29,7 @@ import com.indoqa.fsa.Token;
 
 public class CharAcceptorTest {
 
-    private static final int STRING_COUNT = 10000;
+    private static final int STRING_COUNT = 10_000;
 
     private static String[] getValues(List<Token> tokens) {
         return tokens.stream().map(Token::getValue).toArray(String[]::new);
@@ -124,6 +124,22 @@ public class CharAcceptorTest {
         Acceptor acceptor = CharAcceptorBuilder.build(false, "be", "bre", "ss");
 
         assertFalse(acceptor.accepts("sse"));
+    }
+
+    @Test
+    public void overlapping2() {
+        CharAcceptorBuilder builder = new CharAcceptorBuilder(false);
+
+        builder.addAcceptedInput("12");
+        builder.addAcceptedInput("22");
+        builder.addAcceptedInput("123");
+
+        CharAcceptor acceptor = builder.build();
+
+        assertTrue(acceptor.accepts("12"));
+        assertTrue(acceptor.accepts("22"));
+        assertTrue(acceptor.accepts("123"));
+        assertFalse(acceptor.accepts("223"));
     }
 
     @Test

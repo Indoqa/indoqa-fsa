@@ -17,9 +17,10 @@
 package com.indoqa.fsa.character;
 
 import static com.indoqa.fsa.TestUtils.generateRandomStrings;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Test;
@@ -118,6 +119,17 @@ public class CharTransducerTest {
 
         tokens = transducer.getAllTokens(" ABC ");
         assertEquals(1, tokens.size());
+    }
+
+    @Test
+    public void test4() {
+        CharTransducerBuilder builder = new CharTransducerBuilder(true);
+        builder.add(Arrays.asList("A", "B", "C", "D", "F", "G"), "A");
+        Transducer transducer = builder.build();
+
+        List<Token> tokens = transducer.getAllOccurrences("ABCDEFG");
+        assertEquals(6, tokens.size());
+        assertTrue(tokens.stream().map(Token::getValue).allMatch(value -> value.equals("A")));
     }
 
     @Test
