@@ -68,7 +68,20 @@ public class MorfologikAcceptorBuilder implements AcceptorBuilder {
     @Override
     public void addAcceptedInput(CharSequence... input) {
         for (CharSequence eachInput : input) {
-            this.addAcceptedInput(eachInput);
+            this.addAcceptedInput(eachInput, 0, eachInput.length());
+        }
+    }
+
+    @Override
+    public void addAcceptedInput(CharSequence input, int start, int length) {
+        if (length == 0) {
+            return;
+        }
+
+        if (!this.caseSensitive) {
+            this.inputs.add(EncodingUtils.getBytes(input.subSequence(start, start + length).toString().toLowerCase(Locale.ROOT)));
+        } else {
+            this.inputs.add(EncodingUtils.getBytes(input, start, length));
         }
     }
 
@@ -93,18 +106,6 @@ public class MorfologikAcceptorBuilder implements AcceptorBuilder {
 
         FSA5Serializer fsa5Serializer = new FSA5Serializer();
         fsa5Serializer.serialize(fsa, outputStream);
-    }
-
-    private void addAcceptedInput(CharSequence input) {
-        if (input.length() == 0) {
-            return;
-        }
-
-        if (!this.caseSensitive) {
-            this.inputs.add(EncodingUtils.getBytes(input.toString().toLowerCase(Locale.ROOT)));
-        } else {
-            this.inputs.add(EncodingUtils.getBytes(input));
-        }
     }
 
     private FSA buildFSA() {

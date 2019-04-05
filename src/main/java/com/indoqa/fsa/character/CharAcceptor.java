@@ -168,7 +168,7 @@ public class CharAcceptor implements Acceptor {
             return null;
         }
 
-        return sequence.subSequence(0, result).toString();
+        return sequence.subSequence(start, result).toString();
     }
 
     @Override

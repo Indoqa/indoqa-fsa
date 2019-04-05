@@ -21,9 +21,19 @@ import java.io.OutputStream;
 
 public interface AcceptorBuilder {
 
-    void addAcceptedInput(CharSequence... input);
+    default void addAcceptedInput(CharSequence... input) {
+        for (CharSequence eachInput : input) {
+            this.addAcceptedInput(eachInput, 0, eachInput.length());
+        }
+    }
 
-    void addAcceptedInput(Iterable<? extends CharSequence> input);
+    void addAcceptedInput(CharSequence value, int start, int length);
+
+    default void addAcceptedInput(Iterable<? extends CharSequence> input) {
+        for (CharSequence eachInput : input) {
+            this.addAcceptedInput(eachInput, 0, eachInput.length());
+        }
+    }
 
     Acceptor build();
 

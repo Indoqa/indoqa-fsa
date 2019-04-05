@@ -27,9 +27,10 @@ import com.indoqa.fsa.AcceptorBuilder;
 
 public class CharAcceptorBuilder implements AcceptorBuilder {
 
-    private static final float LOAD_FACTOR = 0.9f;
     public static final int FILE_VERSION = 2;
     public static final int DEFAULT_CAPACITY_INCREMENT = 16 * 1024;
+
+    private static final float LOAD_FACTOR = 0.9f;
 
     private final boolean caseSensitive;
 
@@ -105,21 +106,8 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     }
 
     @Override
-    public void addAcceptedInput(CharSequence... value) {
-        for (CharSequence eachValue : value) {
-            this.addAcceptedInput(eachValue, 0, eachValue.length());
-        }
-    }
-
     public void addAcceptedInput(CharSequence value, int start, int length) {
         this.addAcceptedInput(value, start, length, 0, true);
-    }
-
-    @Override
-    public void addAcceptedInput(Iterable<? extends CharSequence> value) {
-        for (CharSequence eachValue : value) {
-            this.addAcceptedInput(eachValue, 0, eachValue.length());
-        }
     }
 
     @Override
@@ -140,7 +128,7 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         this.minify();
         this.remap();
 
-        DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
+        DataOutputStream dataOutputStream = new DataOutputStream(new BufferedOutputStream(outputStream));
         dataOutputStream.writeInt(FILE_VERSION);
         dataOutputStream.writeBoolean(this.caseSensitive);
         dataOutputStream.writeInt(this.requiredLength);
@@ -405,6 +393,8 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
                 this.requiredLength += node.length;
             }
         }
+
+        this.sendMessage("RequiredLength: " + this.requiredLength);
 
         this.applyReplacements(replacements);
 

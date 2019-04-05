@@ -20,9 +20,12 @@ public class CharDataAccessor {
 
     protected static final int ADDRESS_OFFSET = 1;
     protected static final int FLAGS_OFFSET = 1;
-    protected static final int MASK_SIZE = 0x7FFF;
+
     protected static final int MASK_TERMINAL = 0x8000;
     protected static final int MASK_LAST = 0x4000;
+    protected static final int MASK_FLAGS = MASK_TERMINAL | MASK_LAST;
+    protected static final int MASK_ADDRESS_LOW = 0xFFFF;
+    protected static final int MASK_ADDRESS_HIGH = MASK_ADDRESS_LOW & ~MASK_FLAGS;
     protected static final int NODE_SIZE = 3;
 
     private static final char[] CASE_INSENSITIVE = new char[Character.MAX_VALUE];
@@ -36,6 +39,11 @@ public class CharDataAccessor {
                 CASE_INSENSITIVE[value] = value;
             }
         }
+    }
+
+    public static boolean isDifferentCase(char char1, char char2) {
+        return Character.isUpperCase(char1) && !Character.isUpperCase(char2) ||
+            Character.isLowerCase(char1) && !Character.isLowerCase(char2);
     }
 
     public static char switchCase(char character) {
@@ -69,7 +77,7 @@ public class CharDataAccessor {
     }
 
     protected static int getTarget(char[] data, int index) {
-        return (data[index + ADDRESS_OFFSET] & 0x3FFF) << 16 | data[index + ADDRESS_OFFSET + 1];
+        return (data[index + ADDRESS_OFFSET] & MASK_ADDRESS_HIGH) << 16 | data[index + ADDRESS_OFFSET + 1];
     }
 
     protected static boolean isLast(char[] data, int index) {
@@ -97,16 +105,12 @@ public class CharDataAccessor {
     }
 
     protected static void setTarget(char[] data, int index, int target) {
-        data[index + CharDataAccessor.ADDRESS_OFFSET] = (char) (target >> 16 & 0x3FFF);
-        data[index + CharDataAccessor.ADDRESS_OFFSET + 1] = (char) (target & 0xFFFF);
+        char currentFlags = (char) (data[index + CharDataAccessor.ADDRESS_OFFSET] & MASK_FLAGS);
+        data[index + CharDataAccessor.ADDRESS_OFFSET] = (char) (target >> 16 & MASK_ADDRESS_HIGH | currentFlags);
+        data[index + CharDataAccessor.ADDRESS_OFFSET + 1] = (char) (target & MASK_ADDRESS_LOW);
     }
 
     protected static void setTerminal(char[] data, int index, boolean terminal) {
         setFlag(data, index, MASK_TERMINAL, terminal);
-    }
-
-    public static boolean isDifferentCase(char char1, char char2) {
-        return Character.isUpperCase(char1) && !Character.isUpperCase(char2) ||
-            Character.isLowerCase(char1) && !Character.isLowerCase(char2);
     }
 }
