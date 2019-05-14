@@ -94,6 +94,7 @@
           <excludes>
             <exclude>**/test-resources/*.*</exclude>
             <exclude>README.md</exclude>
+            <exclude>CHANGELOG.md</exclude>
           </excludes>
         </configuration>
       </plugin>
