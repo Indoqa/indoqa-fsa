@@ -63,6 +63,10 @@ public class CharTransducerBuilder implements TransducerBuilder {
         return build(caseSensitive, splitPattern, Arrays.asList(value));
     }
 
+    public static CharTransducer empty() {
+        return build(true, String.valueOf(DEFAULT_SEPARATOR));
+    }
+
     public static CharTransducer read(InputStream inputStream) throws IOException {
         CharAcceptor charAcceptor = CharAcceptorBuilder.read(inputStream);
         char separator = (char) (inputStream.read() & 0xFF | (inputStream.read() & 0xFF) << 8);

@@ -66,6 +66,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         return builder.build();
     }
 
+    public static CharAcceptor empty() {
+        return build(true);
+    }
+
     public static CharAcceptor read(InputStream inputStream) throws IOException {
         DataInputStream dataInputStream = new DataInputStream(inputStream);
 
