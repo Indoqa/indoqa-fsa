@@ -60,17 +60,6 @@ public class MorfologikAcceptor implements Acceptor {
         return this.accepts(sequence.subSequence(start, start + length));
     }
 
-    /**
-     * Find the all accepted inputs at the beginning of given <code>charSequence</code>.<br/>
-     * <br/>
-     * Given the sequence <code>aa bbb cccc ddddd</code><br/>
-     * and the accepted inputs <code>a</code>, <code>aa</code>, <code>aaa</code>, <code>b</code>, <code>bb</code>,
-     * <code>bbb</code><br/>
-     * the matches will be <code>a</code> and <code>aa</code>
-     *
-     * @param charSequence The {@link CharSequence} to examine.
-     * @return All accepted inputs at the beginning of the charSequence.
-     */
     @Override
     public String[] getAllMatches(CharSequence sequence) {
         byte[] bytes = this.getBytes(sequence);
@@ -89,16 +78,6 @@ public class MorfologikAcceptor implements Acceptor {
         return this.getAllMatches(sequence.subSequence(start, start + length));
     }
 
-    /**
-     * Find all accepted inputs in the given <code>charSequence</code>.<br/>
-     * <p>
-     * The only difference to {@link #getAllTokens(CharSequence)} is that the accepted input may occur at any position within the
-     * <code>charSequence</code> (specifically start and end inside a token).
-     * </p>
-     *
-     * @param charSequence The {@link CharSequence} to examine.
-     * @return all occurrences of accepted input
-     */
     @Override
     public List<Token> getAllOccurrences(CharSequence charSequence) {
         List<Token> result = new ArrayList<>();
@@ -124,18 +103,6 @@ public class MorfologikAcceptor implements Acceptor {
         return this.getAllOccurrences(sequence.subSequence(start, start + length));
     }
 
-    /**
-     * Find all accepted inputs that are tokens in the given <code>charSequence</code>.<br/>
-     * <p>
-     * A part of the given sequence is considered to be a <code>token</code>, when it starts and ends at a token boundary.<br/>
-     * A token boundary is the change from a non-word character to a word character (or vice-versa), as well as the beginning and end
-     * of the whole sequence.<br/>
-     * Please note that a token may contain token boundaries.
-     * </p>
-     *
-     * @param charSequence The {@link CharSequence} to examine.
-     * @return All tokens of accepted inputs.
-     */
     @Override
     public List<Token> getAllTokens(CharSequence charSequence) {
         List<Token> result = new ArrayList<>();
@@ -168,17 +135,6 @@ public class MorfologikAcceptor implements Acceptor {
         return this.getAllTokens(sequence.subSequence(start, start + length));
     }
 
-    /**
-     * Find the longest accepted input at the beginning of given <code>charSequence</code>.<br/>
-     * <br/>
-     * Given the sequence <code>aa bbb cccc ddddd</code><br/>
-     * and the accepted inputs <code>a</code>, <code>aa</code>, <code>aaa</code>, <code>b</code>, <code>bb</code>,
-     * <code>bbb</code><br/>
-     * the longest match will be <code>aa</code>
-     *
-     * @param charSequence The charSequence to examine.
-     * @return The longest accepted input at the beginning of the charSequence.
-     */
     @Override
     public String getLongestMatch(CharSequence charSequence) {
         byte[] bytes = this.getBytes(charSequence);
@@ -196,13 +152,6 @@ public class MorfologikAcceptor implements Acceptor {
         return this.getLongestMatch(sequence.subSequence(start, start + length));
     }
 
-    /**
-     * Performs {@link #getAllOccurrences(CharSequence)} and then eliminates overlapping {@link Token Tokens} by only keeping the
-     * longest.
-     *
-     * @param charSequence The {@link CharSequence} to examine.
-     * @return The longest occurrences of accepted input.
-     */
     @Override
     public List<Token> getLongestOccurrences(CharSequence charSequence) {
         return eliminateOverlapping(this.getAllOccurrences(charSequence));
@@ -213,12 +162,6 @@ public class MorfologikAcceptor implements Acceptor {
         return this.getLongestOccurrences(sequence.subSequence(start, start + length));
     }
 
-    /**
-     * Performs {@link #getAllTokens(CharSequence)} and then eliminates overlapping {@link Token Tokens} by only keeping the longest.
-     *
-     * @param charSequence The {@link CharSequence} to examine.
-     * @return The longest tokens of accepted input.
-     */
     @Override
     public List<Token> getLongestTokens(CharSequence charSequence) {
         return eliminateOverlapping(this.getAllTokens(charSequence));
