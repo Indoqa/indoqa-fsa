@@ -29,7 +29,8 @@ import com.indoqa.fsa.Token;
 
 public class CharAcceptorTest {
 
-    private static final int STRING_COUNT = 10_000;
+    private static final int CYCLES = 10;
+    private static final int STRING_COUNT = 50_000;
 
     private static String[] getValues(List<Token> tokens) {
         return tokens.stream().map(Token::getValue).toArray(String[]::new);
@@ -79,7 +80,13 @@ public class CharAcceptorTest {
         String sequence = "Da war ein langsam fahrender Personenkraftwagen mit Anhängerkupplung.";
 
         assertArrayEquals(
-            new String[] {"ar ei", "lang", "langsam", "langsam fahrender", "fahrender Personenkraftwagen", "Person",
+            new String[] {
+                "ar ei",
+                "lang",
+                "langsam",
+                "langsam fahrender",
+                "fahrender Personenkraftwagen",
+                "Person",
                 "Personenkraftwagen mit Anhängerkupplung"},
             getValues(acceptor.getAllOccurrences(sequence)));
 
@@ -147,18 +154,21 @@ public class CharAcceptorTest {
         Set<String> inputs = TestUtils.generateRandomStrings(STRING_COUNT);
         CharAcceptor acceptor = CharAcceptorBuilder.build(true, inputs);
 
-        for (int i = 0; i < 1_000; i++) {
+        for (int i = 0; i < CYCLES; i++) {
             for (String eachInput : inputs) {
-                assertTrue("Original input string should be accepted.", acceptor.accepts(eachInput));
+                assertTrue("Original input string must be accepted.", acceptor.accepts(eachInput));
             }
         }
 
         Set<String> otherInputs = TestUtils.generateRandomStrings(STRING_COUNT);
-        for (String eachOtherInput : otherInputs) {
-            assertEquals(
-                "Random input should only be accepted if it was part of the original input.",
-                inputs.contains(eachOtherInput),
-                acceptor.accepts(eachOtherInput));
+
+        for (int i = 0; i < CYCLES; i++) {
+            for (String eachOtherInput : otherInputs) {
+                assertEquals(
+                    "Random input must only be accepted if it was part of the original input.",
+                    inputs.contains(eachOtherInput),
+                    acceptor.accepts(eachOtherInput));
+            }
         }
     }
 

@@ -21,9 +21,9 @@ import java.util.Arrays;
 public class NodeReference implements Comparable<NodeReference> {
 
     private final char[] data;
-    private final Integer index;
+    private final int index;
 
-    public NodeReference(char[] data, Integer index) {
+    public NodeReference(char[] data, int index) {
         super();
         this.data = data;
         this.index = index;
@@ -49,7 +49,7 @@ public class NodeReference implements Comparable<NodeReference> {
             return -1;
         }
 
-        return this.index.compareTo(other.index);
+        return Integer.compare(this.index, other.index);
     }
 
     @Override
@@ -62,7 +62,11 @@ public class NodeReference implements Comparable<NodeReference> {
         return Arrays.equals(this.data, other.data);
     }
 
-    public Integer getIndex() {
+    public char[] getData() {
+        return this.data;
+    }
+
+    public int getIndex() {
         return this.index;
     }
 

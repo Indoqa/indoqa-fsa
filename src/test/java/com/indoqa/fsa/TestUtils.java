@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.RandomUtils;
 
 public class TestUtils {
 
@@ -27,11 +28,11 @@ public class TestUtils {
         Set<String> result = new HashSet<>();
 
         while (result.size() < count) {
-            String randomAlphanumeric = RandomStringUtils.randomAlphanumeric(20);
+            int length = RandomUtils.nextInt(5, 20);
+            String randomAlphanumeric = RandomStringUtils.randomAlphanumeric(length);
             result.add(randomAlphanumeric);
         }
 
         return result;
     }
-
 }

@@ -20,7 +20,7 @@ import static com.indoqa.fsa.character.CharDataAccessor.*;
 
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map.Entry;
 import java.util.function.Consumer;
 
 import com.indoqa.fsa.AcceptorBuilder;
@@ -30,13 +30,13 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     public static final int FILE_VERSION = 2;
     public static final int DEFAULT_CAPACITY_INCREMENT = 16 * 1024;
 
-    private static final float LOAD_FACTOR = 0.9f;
-
     private final boolean caseSensitive;
 
     private char[][] nodes = new char[0][];
     private int nodeCount;
     private int capacityIncrement;
+
+    private Replacements replacements;
 
     private Consumer<String> messageConsumer;
 
@@ -88,25 +88,30 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         return new CharAcceptor(data, caseSensitive);
     }
 
-    private static <K, V> ConcurrentHashMap<K, V> createHashMap(int size) {
-        return new ConcurrentHashMap<>((int) (size / LOAD_FACTOR + 1), LOAD_FACTOR, 1);
-    }
-
     private static String getKey(char[] node) {
         StringBuilder stringBuilder = new StringBuilder();
 
-        for (int i = 0; i < 10; i++) {
-            if (node.length <= CharDataAccessor.NODE_SIZE * i) {
-                break;
-            }
-
-            stringBuilder.append(node[CharDataAccessor.NODE_SIZE * i]);
+        for (int i = 0; i < node.length; i += CharDataAccessor.NODE_SIZE) {
+            stringBuilder.append(CharDataAccessor.getLabel(node, i));
         }
 
-        stringBuilder.append('_');
-        stringBuilder.append(node.length);
-
         return stringBuilder.toString();
+    }
+
+    private static int sort(NodeReference n1, NodeReference n2) {
+        if (n1 == null && n2 == null) {
+            return 0;
+        }
+
+        if (n1 == null) {
+            return 1;
+        }
+
+        if (n2 == null) {
+            return -1;
+        }
+
+        return n1.compareTo(n2);
     }
 
     @Override
@@ -116,8 +121,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
     @Override
     public CharAcceptor build() {
+        this.replacements = new Replacements(this.nodeCount);
         this.minify();
         this.remap();
+        this.replacements = null;
 
         char[] data = this.buildData();
         return new CharAcceptor(data, this.caseSensitive);
@@ -129,8 +136,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
     @Override
     public void write(OutputStream outputStream) throws IOException {
+        this.replacements = new Replacements(this.nodeCount);
         this.minify();
         this.remap();
+        this.replacements = null;
 
         DataOutputStream dataOutputStream = new DataOutputStream(new BufferedOutputStream(outputStream));
         dataOutputStream.writeInt(FILE_VERSION);
@@ -222,14 +231,34 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         this.nodeCount++;
     }
 
-    private boolean applyReplacements(char[] nodeData, Map<Integer, Integer> replacements) {
+    private Set<String> applyReplacements() {
+        this.sendMessage("Applying " + this.replacements.getCount() + " replacements");
+
+        Set<String> result = new HashSet<>();
+
+        for (int i = 0; i < this.nodeCount; i++) {
+            char[] node = this.nodes[i];
+            if (node == null) {
+                continue;
+            }
+
+            boolean updated = this.applyReplacements(node);
+            if (updated) {
+                result.add(getKey(node));
+            }
+        }
+
+        return result;
+    }
+
+    private boolean applyReplacements(char[] nodeData) {
         boolean result = false;
 
         for (int i = 0; i < nodeData.length; i += CharDataAccessor.NODE_SIZE) {
             int target = getTarget(nodeData, i);
 
-            Integer replacement = replacements.get(target);
-            if (replacement == null) {
+            int replacement = this.replacements.getReplacement(target);
+            if (replacement == -1) {
                 continue;
             }
 
@@ -241,25 +270,6 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
             CharDataAccessor.setLast(nodeData, i, isLast);
 
             result = true;
-        }
-
-        return result;
-    }
-
-    private Set<String> applyReplacements(Map<Integer, Integer> replacements) {
-        this.sendMessage("Applying " + replacements.size() + " replacements");
-
-        Set<String> result = new HashSet<>();
-
-        for (int i = 0; i < this.nodeCount; i++) {
-            char[] node = this.nodes[i];
-            if (node == null) {
-                continue;
-            }
-
-            if (this.applyReplacements(node, replacements)) {
-                result.add(getKey(node));
-            }
         }
 
         return result;
@@ -281,10 +291,8 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         return data;
     }
 
-    private Map<String, List<Integer>> buildGroups() {
-        this.sendMessage("Building groups");
-
-        Map<String, List<Integer>> result = createHashMap(1000);
+    private Map<String, List<NodeReference>> buildGroups() {
+        Map<String, List<NodeReference>> result = new HashMap<>();
 
         for (int i = 0; i < this.nodeCount; i++) {
             char[] node = this.nodes[i];
@@ -294,48 +302,55 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
             String key = getKey(node);
 
-            List<Integer> indexes = result.get(key);
+            List<NodeReference> indexes = result.get(key);
             if (indexes == null) {
-                indexes = new LinkedList<>();
+                indexes = new ArrayList<>();
                 result.put(key, indexes);
             }
 
-            indexes.add(i);
+            indexes.add(new NodeReference(node, i));
         }
 
+        for (Iterator<Entry<String, List<NodeReference>>> iterator = result.entrySet().iterator(); iterator.hasNext();) {
+            if (iterator.next().getValue().size() < 2) {
+                iterator.remove();
+            }
+        }
+
+        this.sendMessage("Built " + result.size() + " groups");
         return result;
     }
 
-    private Map<Integer, Integer> findReplacements(List<Integer> group) {
-        Map<Integer, Integer> result = new HashMap<>();
-
-        List<NodeReference> references = new ArrayList<>(group.size());
-
-        for (Iterator<Integer> iterator = group.iterator(); iterator.hasNext();) {
-            Integer index = iterator.next();
-
-            char[] node = this.nodes[index];
-            if (node == null) {
-                iterator.remove();
+    private void findEndNodeReplacements() {
+        for (int i = 0; i < this.nodeCount; i++) {
+            if (this.nodes[i] == null || this.nodes[i].length != 0) {
                 continue;
             }
 
-            references.add(new NodeReference(node, index));
+            this.nodes[i] = null;
+            this.replacements.setReplacement(i, 0);
         }
+    }
 
-        references.sort(null);
+    private void findReplacements(List<NodeReference> group) {
+        group.sort(CharAcceptorBuilder::sort);
 
         NodeReference lastReference = null;
-        for (NodeReference eachReference : references) {
-            if (lastReference == null || !eachReference.equals(lastReference)) {
-                lastReference = eachReference;
-            } else {
-                result.put(eachReference.getIndex(), lastReference.getIndex());
-                this.nodes[eachReference.getIndex()] = null;
+        for (ListIterator<NodeReference> iterator = group.listIterator(); iterator.hasNext();) {
+            NodeReference reference = iterator.next();
+            if (reference == null) {
+                break;
             }
-        }
 
-        return result;
+            if (lastReference == null || !reference.equals(lastReference)) {
+                lastReference = reference;
+                continue;
+            }
+
+            this.replacements.setReplacement(reference.getIndex(), lastReference.getIndex());
+            this.nodes[reference.getIndex()] = null;
+            iterator.set(null);
+        }
     }
 
     private void minify() {
@@ -345,30 +360,28 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
         this.sendMessage("Minifying " + this.nodeCount + " nodes");
 
-        Map<Integer, Integer> replacements = this.replaceEndNodes();
-        this.applyReplacements(replacements);
-
-        Map<String, List<Integer>> groups = this.buildGroups();
-        Set<String> changedGroups = new HashSet<>(groups.keySet());
+        Map<String, List<NodeReference>> groups = this.buildGroups();
+        this.replacements.clear();
+        this.findEndNodeReplacements();
+        Set<String> changedGroups = this.applyReplacements();
 
         while (true) {
-            replacements.clear();
+            this.replacements.clear();
 
-            this.sendMessage("Finding duplicates in " + changedGroups.size() + " groups");
             for (String eachChangedGroup : changedGroups) {
-                List<Integer> group = groups.get(eachChangedGroup);
-                if (group == null || group.size() < 2) {
+                List<NodeReference> group = groups.get(eachChangedGroup);
+                if (group == null) {
                     continue;
                 }
 
-                replacements.putAll(this.findReplacements(group));
+                this.findReplacements(group);
             }
 
-            if (replacements.isEmpty()) {
+            if (this.replacements.getCount() == 0) {
                 break;
             }
 
-            changedGroups = this.applyReplacements(replacements);
+            changedGroups = this.applyReplacements();
         }
 
         this.minified = true;
@@ -382,8 +395,6 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         this.sendMessage("Remapping node addresses ...");
         this.requiredLength = 0;
 
-        Map<Integer, Integer> replacements = createHashMap(this.nodeCount);
-
         for (int i = 0; i < this.nodeCount; i++) {
             char[] node = this.nodes[i];
             if (node == null) {
@@ -391,33 +402,18 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
             }
 
             if (node.length == 0) {
-                replacements.put(i, 0);
+                this.replacements.setReplacement(i, 0);
             } else {
-                replacements.put(i, this.requiredLength);
+                this.replacements.setReplacement(i, this.requiredLength);
                 this.requiredLength += node.length;
             }
         }
 
         this.sendMessage("RequiredLength: " + this.requiredLength);
 
-        this.applyReplacements(replacements);
+        this.applyReplacements();
 
         this.remapped = true;
-    }
-
-    private Map<Integer, Integer> replaceEndNodes() {
-        Map<Integer, Integer> result = createHashMap(1000);
-
-        for (int i = 0; i < this.nodeCount; i++) {
-            if (this.nodes[i] == null || this.nodes[i].length != 0) {
-                continue;
-            }
-
-            this.nodes[i] = null;
-            result.put(i, 0);
-        }
-
-        return result;
     }
 
     private void sendMessage(String message) {

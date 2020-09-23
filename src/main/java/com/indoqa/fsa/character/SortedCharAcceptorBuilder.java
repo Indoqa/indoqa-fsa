@@ -23,7 +23,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import com.indoqa.fsa.AcceptorBuilder;
@@ -36,15 +35,12 @@ public class SortedCharAcceptorBuilder implements AcceptorBuilder {
     private final boolean caseSensitive;
     private final int capacityIncrement;
 
-    private final List<Integer> vacantNodes = new LinkedList<>();
     private final Set<String> inputs;
     private Consumer<String> messageConsumer;
 
     private char[][] nodes;
     private int nodeCount;
     private int requiredLength;
-
-    private Map<String, Integer> foldedNodes;
 
     public SortedCharAcceptorBuilder(boolean caseSensitive) {
         this(caseSensitive, DEFAULT_CAPACITY_INCREMENT);
@@ -55,12 +51,17 @@ public class SortedCharAcceptorBuilder implements AcceptorBuilder {
 
         this.caseSensitive = caseSensitive;
         this.capacityIncrement = capacityIncrement;
+        this.inputs = new TreeSet<>((s1, s2) -> CharDataAccessor.compare(s1, s2, caseSensitive));
+    }
 
-        if (caseSensitive) {
-            this.inputs = new TreeSet<>();
-        } else {
-            this.inputs = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        }
+    public static CharAcceptor build(boolean caseSensitive, CharSequence... input) {
+        return build(caseSensitive, Arrays.asList(input));
+    }
+
+    public static CharAcceptor build(boolean caseSensitive, Iterable<? extends CharSequence> input) {
+        SortedCharAcceptorBuilder builder = new SortedCharAcceptorBuilder(caseSensitive);
+        builder.addAcceptedInput(input);
+        return builder.build();
     }
 
     @Override
@@ -139,12 +140,6 @@ public class SortedCharAcceptorBuilder implements AcceptorBuilder {
     }
 
     private int addNode() {
-        if (!this.vacantNodes.isEmpty()) {
-            Integer index = this.vacantNodes.remove(0);
-            this.nodes[index] = new char[0];
-            return index;
-        }
-
         if (this.nodeCount + 1 >= this.nodes.length) {
             char[][] newData = new char[this.nodes.length + this.capacityIncrement][];
             System.arraycopy(this.nodes, 0, newData, 0, this.nodes.length);
@@ -166,12 +161,12 @@ public class SortedCharAcceptorBuilder implements AcceptorBuilder {
         }
     }
 
-    private void applyReplacements(char[] nodeData, Map<Integer, Integer> replacements) {
+    private void applyReplacements(char[] nodeData, Replacements replacements) {
         for (int i = 0; i < nodeData.length; i += CharDataAccessor.NODE_SIZE) {
             int target = getTarget(nodeData, i);
 
-            Integer replacement = replacements.get(target);
-            if (replacement == null) {
+            int replacement = replacements.getReplacement(target);
+            if (replacement == -1) {
                 continue;
             }
 
@@ -179,8 +174,8 @@ public class SortedCharAcceptorBuilder implements AcceptorBuilder {
         }
     }
 
-    private void applyReplacements(Map<Integer, Integer> replacements) {
-        this.sendMessage("Applying " + replacements.size() + " replacements");
+    private void applyReplacements(Replacements replacements) {
+        this.sendMessage("Applying " + replacements.getCount() + " replacements");
 
         for (int i = 0; i < this.nodeCount; i++) {
             char[] node = this.nodes[i];
@@ -219,7 +214,7 @@ public class SortedCharAcceptorBuilder implements AcceptorBuilder {
 
         Path lastPath = new Path();
         Path currentPath = new Path();
-        this.foldedNodes = new HashMap<>(this.nodeCount);
+        Map<String, Integer> foldedNodes = new HashMap<>(this.nodeCount >> 1);
 
         int count = 0;
 
@@ -251,26 +246,28 @@ public class SortedCharAcceptorBuilder implements AcceptorBuilder {
                 commonLength++;
             }
 
-            this.foldNodes(lastPath, commonLength);
+            this.foldNodes(lastPath, commonLength, foldedNodes);
             lastPath.copy(currentPath);
 
             if (++count % 100_000 == 0) {
-                this.sendMessage(count + " of " + this.inputs.size());
+                this.sendMessage("Imported " + count + " of " + this.inputs.size());
             }
         }
 
-        this.foldNodes(lastPath, 0);
+        this.foldNodes(lastPath, 0, foldedNodes);
 
         this.remap();
     }
 
-    private void foldNodes(Path path, int commonLength) {
+    private void foldNodes(Path path, int commonLength, Map<String, Integer> foldedNodes) {
         for (int i = path.length() - 1; i >= commonLength; i--) {
             int nodeIndex = path.get(i);
             char[] node = this.nodes[nodeIndex];
 
-            Integer frozenIndex = this.foldedNodes.putIfAbsent(new String(node), nodeIndex);
-            if (frozenIndex == null) {
+            String data = new String(node);
+
+            Integer frozenIndex = foldedNodes.putIfAbsent(data, nodeIndex);
+            if (frozenIndex == null || frozenIndex.intValue() == nodeIndex) {
                 continue;
             }
 
@@ -278,8 +275,6 @@ public class SortedCharAcceptorBuilder implements AcceptorBuilder {
             char[] previousNode = this.nodes[previousNodeIndex];
             this.applyReplacement(previousNode, nodeIndex, frozenIndex);
             this.nodes[nodeIndex] = null;
-
-            this.vacantNodes.add(nodeIndex);
         }
     }
 
@@ -287,7 +282,7 @@ public class SortedCharAcceptorBuilder implements AcceptorBuilder {
         this.sendMessage("Remapping node addresses ...");
         this.requiredLength = 0;
 
-        Map<Integer, Integer> replacements = new ConcurrentHashMap<>();
+        Replacements replacements = new Replacements(this.nodeCount);
 
         for (int i = 0; i < this.nodeCount; i++) {
             char[] node = this.nodes[i];
@@ -296,9 +291,9 @@ public class SortedCharAcceptorBuilder implements AcceptorBuilder {
             }
 
             if (node.length == 0) {
-                replacements.put(i, 0);
+                replacements.setReplacement(i, 0);
             } else {
-                replacements.put(i, this.requiredLength);
+                replacements.setReplacement(i, this.requiredLength);
                 this.requiredLength += node.length;
             }
         }
@@ -327,7 +322,7 @@ public class SortedCharAcceptorBuilder implements AcceptorBuilder {
         }
     }
 
-    private static class Path {
+    protected static class Path {
 
         private int[] elements = new int[16];
         private int insertIndex = 0;
