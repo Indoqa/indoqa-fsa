@@ -19,6 +19,8 @@ package com.indoqa.fsa;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.indoqa.fsa.utils.TokenCandidate;
+
 public interface Transducer {
 
     /**
@@ -46,7 +48,11 @@ public interface Transducer {
      *
      * @return All transduced {@link Token tokens}. Never <code>null</code>.
      */
-    List<Token> getAllMatches(CharSequence sequence, int start, int length);
+    default List<Token> getAllMatches(CharSequence sequence, int start, int length) {
+        return this.getAllMatches(sequence, start, length, new ArrayList<>());
+    }
+
+    List<Token> getAllMatches(CharSequence sequence, int start, int length, List<Token> result);
 
     /**
      * Find all transducible tokens anywhere in the given <code>sequence</code>.<br/>
@@ -125,6 +131,18 @@ public interface Transducer {
     /**
      * Find all transducible tokens anywhere in the given <code>sequence</code>.<br/>
      * <br/>
+     * Matches are not required to happen at a token boundary. <br/>
+     * If tokens overlap, only the longest will be returned. Uses the length of the match (not of the transduction) for comparison.
+     *
+     * @param sequence The sequence in which to find tokens.
+     *
+     * @return All tokens found. Never <code>null</code>.
+     */
+    List<Token> getLongestOccurrences(CharSequence sequence);
+
+    /**
+     * Find all transducible tokens anywhere in the given <code>sequence</code>.<br/>
+     * <br/>
      * Matches must happen at a token boundary. <br/>
      * If tokens overlap, only the longest will be returned. Uses the length of the match (not of the transduction) for comparison.
      *
@@ -158,5 +176,7 @@ public interface Transducer {
      * @return Either the transduction or the defaultValue.
      */
     CharSequence transduce(CharSequence sequence, CharSequence defaultValue);
+
+    CharSequence transduce(CharSequence sequence, int start, int length);
 
 }

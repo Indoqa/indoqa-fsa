@@ -191,9 +191,7 @@ public class CharAcceptor implements Acceptor {
         return TokenCandidate.eliminateOverlapping(this.getAllTokens(sequence, start, length));
     }
 
-    protected List<Token> getAllPrefixes(CharSequence sequence, int start, int length, char separator) {
-        List<Token> result = new ArrayList<>();
-
+    protected void getAllPrefixes(CharSequence sequence, int start, int length, char separator, List<Token> result) {
         int matchedLength = 0;
         int index = 0;
         int arc = 0;
@@ -214,8 +212,6 @@ public class CharAcceptor implements Acceptor {
                 result.add(Token.create(start, sequence.subSequence(start, start + matchedLength).toString()));
             }
         }
-
-        return result;
     }
 
     protected String getInput(int startIndex) {

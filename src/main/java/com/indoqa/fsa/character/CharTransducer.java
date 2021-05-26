@@ -39,8 +39,8 @@ public class CharTransducer implements Transducer {
     }
 
     @Override
-    public List<Token> getAllMatches(CharSequence sequence, int start, int length) {
-        List<Token> result = this.charAcceptor.getAllPrefixes(sequence, start, length, this.separator);
+    public List<Token> getAllMatches(CharSequence sequence, int start, int length, List<Token> result) {
+        this.charAcceptor.getAllPrefixes(sequence, start, length, this.separator, result);
 
         CharMatch charMatch = CharMatch.partialMatchAllowed();
         for (Token token : result) {
@@ -98,6 +98,11 @@ public class CharTransducer implements Transducer {
     }
 
     @Override
+    public List<Token> getLongestOccurrences(CharSequence sequence) {
+        return TokenCandidate.eliminateOverlapping(this.getAllOccurrences(sequence));
+    }
+
+    @Override
     public List<Token> getLongestTokens(CharSequence sequence) {
         return TokenCandidate.eliminateOverlapping(this.getAllTokens(sequence));
     }
@@ -110,6 +115,11 @@ public class CharTransducer implements Transducer {
         }
 
         return transduced;
+    }
+
+    @Override
+    public CharSequence transduce(CharSequence sequence, int start, int length) {
+        return this.transduce(sequence, start, length, CharMatch.fullMatchRequired());
     }
 
     private CharSequence transduce(CharSequence sequence, int start, int length, CharMatch match) {
