@@ -41,7 +41,7 @@ public class CharDataAccessor {
         }
     }
 
-    public static int compare(String s1, String s2, boolean caseSensitive) {
+    public static int compare(CharSequence s1, CharSequence s2, boolean caseSensitive) {
         for (int i = 0; i < s1.length(); i++) {
             if (s2.length() == i) {
                 return s1.length() - s2.length();
