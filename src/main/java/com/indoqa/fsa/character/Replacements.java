@@ -25,6 +25,7 @@ public class Replacements {
 
     public Replacements(int capacity) {
         this.targets = new int[capacity];
+        this.clear();
     }
 
     public void clear() {

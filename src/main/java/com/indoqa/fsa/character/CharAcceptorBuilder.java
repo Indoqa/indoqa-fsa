@@ -19,6 +19,7 @@ package com.indoqa.fsa.character;
 import static com.indoqa.fsa.character.CharDataAccessor.*;
 
 import java.io.*;
+import java.text.NumberFormat;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.Consumer;
@@ -29,12 +30,14 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
     public static final int FILE_VERSION = 2;
     public static final int DEFAULT_CAPACITY_INCREMENT = 16 * 1024;
+    public static final int DEFAULT_SHRINK_LIMIT = 1_000;
 
     private final boolean caseSensitive;
 
     private char[][] nodes = new char[0][];
     private int nodeCount;
-    private int capacityIncrement;
+    private final int capacityIncrement;
+    private final int shrinkLimit;
 
     private Replacements replacements;
 
@@ -45,14 +48,15 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     private int requiredLength;
 
     public CharAcceptorBuilder(boolean caseSensitive) {
-        this(caseSensitive, DEFAULT_CAPACITY_INCREMENT);
+        this(caseSensitive, DEFAULT_CAPACITY_INCREMENT, DEFAULT_SHRINK_LIMIT);
     }
 
-    public CharAcceptorBuilder(boolean caseSensitive, int capacityIncrement) {
+    public CharAcceptorBuilder(boolean caseSensitive, int capacityIncrement, int shrinkLimit) {
         super();
 
         this.caseSensitive = caseSensitive;
         this.capacityIncrement = capacityIncrement;
+        this.shrinkLimit = shrinkLimit;
         this.addNode();
     }
 
@@ -86,6 +90,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         }
 
         return new CharAcceptor(data, caseSensitive);
+    }
+
+    private static String formatNumber(long number) {
+        return NumberFormat.getInstance(Locale.ENGLISH).format(number);
     }
 
     private static String getKey(char[] node) {
@@ -231,26 +239,6 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         this.nodeCount++;
     }
 
-    private Set<String> applyReplacements() {
-        this.sendMessage("Applying " + this.replacements.getCount() + " replacements");
-
-        Set<String> result = new HashSet<>();
-
-        for (int i = 0; i < this.nodeCount; i++) {
-            char[] node = this.nodes[i];
-            if (node == null) {
-                continue;
-            }
-
-            boolean updated = this.applyReplacements(node);
-            if (updated) {
-                result.add(getKey(node));
-            }
-        }
-
-        return result;
-    }
-
     private boolean applyReplacements(char[] nodeData) {
         boolean result = false;
 
@@ -273,6 +261,25 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         }
 
         return result;
+    }
+
+    private void applyReplacements(Set<String> changedGroups) {
+        this.sendMessage("Applying " + formatNumber(this.replacements.getCount()) + " replacements");
+        if (changedGroups != null) {
+            changedGroups.clear();
+        }
+
+        for (int i = 0; i < this.nodeCount; i++) {
+            char[] node = this.nodes[i];
+            if (node == null) {
+                continue;
+            }
+
+            boolean updated = this.applyReplacements(node);
+            if (updated && changedGroups != null) {
+                changedGroups.add(getKey(node));
+            }
+        }
     }
 
     private char[] buildData() {
@@ -317,7 +324,6 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
             }
         }
 
-        this.sendMessage("Built " + result.size() + " groups");
         return result;
     }
 
@@ -353,17 +359,37 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         }
     }
 
+    private long getSize() {
+        long length = 0;
+
+        for (int i = 0; i < this.nodeCount; i++) {
+            char[] node = this.nodes[i];
+            if (node == null) {
+                continue;
+            }
+
+            if (node.length != 0) {
+                length += node.length;
+            }
+        }
+
+        return length;
+    }
+
     private void minify() {
         if (this.minified) {
             return;
         }
 
-        this.sendMessage("Minifying " + this.nodeCount + " nodes");
+        long start = System.currentTimeMillis();
+        long previousSize = this.getSize();
+        this.sendMessage("Minifying " + formatNumber(this.nodeCount) + " nodes");
 
         Map<String, List<NodeReference>> groups = this.buildGroups();
-        this.replacements.clear();
+        Set<String> changedGroups = new HashSet<>();
+
         this.findEndNodeReplacements();
-        Set<String> changedGroups = this.applyReplacements();
+        this.applyReplacements(changedGroups);
 
         while (true) {
             this.replacements.clear();
@@ -377,12 +403,31 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
                 this.findReplacements(group);
             }
 
-            if (this.replacements.getCount() == 0) {
+            if (this.replacements.isEmpty()) {
                 break;
             }
 
-            changedGroups = this.applyReplacements();
+            this.applyReplacements(changedGroups);
+
+            long size = this.getSize();
+            long shrunk = previousSize - size;
+            long minShrink = previousSize / this.shrinkLimit;
+            this.sendMessage(
+                "Shrunk size by " + formatNumber(shrunk) + " (from " + formatNumber(previousSize) + " to " + formatNumber(size) + "), "
+                    + formatNumber((System.currentTimeMillis() - start) / 1_000) + " seconds");
+
+            if (shrunk < minShrink) {
+                this.sendMessage(
+                    "Shrinking step smaller than limit (" + formatNumber(shrunk) + " < " + formatNumber(minShrink)
+                        + "). Aborting ...");
+                break;
+            }
+
+            previousSize = size;
         }
+
+        long duration = System.currentTimeMillis() - start;
+        this.sendMessage("Minified in " + formatNumber(duration / 1_000) + " seconds");
 
         this.minified = true;
     }
@@ -409,9 +454,9 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
             }
         }
 
-        this.sendMessage("RequiredLength: " + this.requiredLength);
+        this.sendMessage("Required length " + formatNumber(this.requiredLength));
 
-        this.applyReplacements();
+        this.applyReplacements((Set<String>) null);
 
         this.remapped = true;
     }

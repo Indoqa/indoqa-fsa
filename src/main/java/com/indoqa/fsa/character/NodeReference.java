@@ -31,11 +31,15 @@ public class NodeReference implements Comparable<NodeReference> {
 
     @Override
     public int compareTo(NodeReference other) {
-        for (int i = 0; i < this.data.length; i++) {
-            if (other.data.length <= i) {
-                return 1;
-            }
+        if (other.data.length < this.data.length) {
+            return 1;
+        }
 
+        if (other.data.length > this.data.length) {
+            return -1;
+        }
+
+        for (int i = 0; i < this.data.length; i++) {
             if (this.data[i] < other.data[i]) {
                 return -1;
             }
@@ -43,10 +47,6 @@ public class NodeReference implements Comparable<NodeReference> {
             if (this.data[i] > other.data[i]) {
                 return 1;
             }
-        }
-
-        if (other.data.length > this.data.length) {
-            return -1;
         }
 
         return Integer.compare(this.index, other.index);

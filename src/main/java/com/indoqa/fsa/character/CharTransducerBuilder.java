@@ -38,13 +38,13 @@ public class CharTransducerBuilder implements TransducerBuilder {
     }
 
     public CharTransducerBuilder(boolean caseSensitive, char separator) {
-        this(caseSensitive, separator, CharAcceptorBuilder.DEFAULT_CAPACITY_INCREMENT);
+        this(caseSensitive, separator, CharAcceptorBuilder.DEFAULT_CAPACITY_INCREMENT, CharAcceptorBuilder.DEFAULT_SHRINK_LIMIT);
     }
 
-    public CharTransducerBuilder(boolean caseSensitive, char separator, int capacityIncrement) {
+    public CharTransducerBuilder(boolean caseSensitive, char separator, int capacityIncrement, int shrinkLimit) {
         super();
 
-        this.acceptorBuilder = new CharAcceptorBuilder(caseSensitive, capacityIncrement);
+        this.acceptorBuilder = new CharAcceptorBuilder(caseSensitive, capacityIncrement, shrinkLimit);
         this.separator = separator;
     }
 
