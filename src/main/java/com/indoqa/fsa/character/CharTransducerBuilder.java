@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 import com.indoqa.fsa.TransducerBuilder;
@@ -103,6 +104,10 @@ public class CharTransducerBuilder implements TransducerBuilder {
     public CharTransducer build() {
         CharAcceptor charAcceptor = this.acceptorBuilder.build();
         return new CharTransducer(charAcceptor, DEFAULT_SEPARATOR);
+    }
+
+    public void setAbortSupplier(BooleanSupplier abortSupplier) {
+        this.acceptorBuilder.setAbortSupplier(abortSupplier);
     }
 
     public void setMessageConsumer(Consumer<String> messageConsumer) {

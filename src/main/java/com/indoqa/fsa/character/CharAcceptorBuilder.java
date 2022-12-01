@@ -22,6 +22,7 @@ import java.io.*;
 import java.text.NumberFormat;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 import com.indoqa.fsa.AcceptorBuilder;
@@ -42,6 +43,7 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     private Replacements replacements;
 
     private Consumer<String> messageConsumer;
+    private BooleanSupplier abortSupplier;
 
     private boolean minified;
     private boolean remapped;
@@ -136,6 +138,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
         char[] data = this.buildData();
         return new CharAcceptor(data, this.caseSensitive);
+    }
+
+    public void setAbortSupplier(BooleanSupplier abortSupplier) {
+        this.abortSupplier = abortSupplier;
     }
 
     public void setMessageConsumer(Consumer<String> messageConsumer) {
@@ -292,9 +298,12 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
                 continue;
             }
 
+            this.checkAborted();
+
             System.arraycopy(node, 0, data, offset, node.length);
             offset += node.length;
         }
+
         return data;
     }
 
@@ -325,6 +334,12 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         }
 
         return result;
+    }
+
+    private void checkAborted() {
+        if (this.abortSupplier != null && this.abortSupplier.getAsBoolean()) {
+            throw new AbortedException();
+        }
     }
 
     private void findEndNodeReplacements() {
@@ -395,6 +410,8 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
             this.replacements.clear();
 
             for (String eachChangedGroup : changedGroups) {
+                this.checkAborted();
+
                 List<NodeReference> group = groups.get(eachChangedGroup);
                 if (group == null) {
                     continue;
@@ -473,6 +490,8 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
             if (node == null) {
                 continue;
             }
+
+            this.checkAborted();
 
             for (char eachChar : node) {
                 outputStream.writeChar(eachChar);
