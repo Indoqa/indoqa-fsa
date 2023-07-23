@@ -18,8 +18,7 @@ package com.indoqa.fsa.character;
 
 import static com.indoqa.fsa.character.CharDataAccessor.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import com.indoqa.fsa.Acceptor;
 import com.indoqa.fsa.Token;
@@ -29,7 +28,7 @@ import com.indoqa.fsa.utils.TokenCandidate;
 
 public class CharAcceptor implements Acceptor {
 
-    private final char[] data;
+    protected final char[] data;
     private boolean caseSensitive;
 
     protected CharAcceptor(char[] data, boolean caseSensitive) {
@@ -138,6 +137,46 @@ public class CharAcceptor implements Acceptor {
         return result;
     }
 
+    public List<String> getCompletions(CharSequence sequence, int maxCount) {
+        if (maxCount < 1) {
+            return Collections.emptyList();
+        }
+
+        // first navigate the graph to match the input sequence
+        int index = 0;
+        int arc = 0;
+
+        for (int i = 0; i < sequence.length(); i++) {
+            arc = getArc(this.data, index, sequence.charAt(i), this.caseSensitive);
+            if (arc == -1) {
+                return Collections.emptyList();
+            }
+
+            index = getTarget(this.data, arc);
+            if (index == 0 && i < sequence.length() - 1) {
+                return Collections.emptyList();
+            }
+        }
+
+        List<String> completions = new ArrayList<>();
+
+        if (sequence.length() > 0 && isTerminal(this.data, arc)) {
+            // if we have a sequence and that sequence is terminal, add it to the result
+            completions.add(sequence.toString());
+        }
+
+        if (sequence.length() == 0 || index != 0) {
+            // index == 0 is either "no more nodes" or "beginning of graph"
+            // the length of the sequence tells the difference
+            Iterator<String> iterator = new AcceptorIterator(index, sequence);
+            while (completions.size() < maxCount && iterator.hasNext()) {
+                completions.add(iterator.next());
+            }
+        }
+
+        return completions;
+    }
+
     @Override
     public String getLongestMatch(CharSequence sequence) {
         return this.getLongestMatch(sequence, 0, sequence.length());
@@ -189,6 +228,14 @@ public class CharAcceptor implements Acceptor {
     @Override
     public List<Token> getLongestTokens(CharSequence sequence, int start, int length) {
         return TokenCandidate.eliminateOverlapping(this.getAllTokens(sequence, start, length));
+    }
+
+    public boolean isCaseSensitive() {
+        return this.caseSensitive;
+    }
+
+    public Iterator<String> iterator() {
+        return new AcceptorIterator(0, "");
     }
 
     protected void getAllPrefixes(CharSequence sequence, int start, int length, char separator, List<Token> result) {
@@ -287,5 +334,91 @@ public class CharAcceptor implements Acceptor {
         }
 
         return getTarget(this.data, arc);
+    }
+
+    private class AcceptorIterator implements Iterator<String> {
+
+        private final StringBuilder stringBuilder;
+
+        private int[] indexes;
+        private int offset;
+        private String next;
+        private boolean first;
+
+        public AcceptorIterator(int startIndex, CharSequence prefix) {
+            super();
+
+            this.indexes = new int[64];
+            this.indexes[0] = startIndex;
+
+            this.stringBuilder = new StringBuilder(prefix);
+            this.offset = 0;
+            this.first = true;
+        }
+
+        @Override
+        public boolean hasNext() {
+            if (this.next != null) {
+                return true;
+            }
+
+            while (true) {
+                int currentIndex = this.indexes[this.offset];
+
+                if (currentIndex == 0) {
+                    if (this.offset != 0) {
+                        // move back
+                        this.stringBuilder.setLength(this.stringBuilder.length() - 1);
+                        this.offset--;
+
+                        if (isLast(CharAcceptor.this.data, this.indexes[this.offset])) {
+                            // the previous node does not have a sibling, move back again
+                            this.indexes[this.offset] = 0;
+                        } else {
+                            // move to the next sibling of the previous node
+                            this.indexes[this.offset] += NODE_SIZE;
+                        }
+
+                        continue;
+                    }
+
+                    if (!this.first) {
+                        return false;
+                    }
+                }
+
+                char label = getLabel(CharAcceptor.this.data, currentIndex);
+                this.stringBuilder.append(label);
+                this.offset++;
+                this.addIndex(getTarget(CharAcceptor.this.data, currentIndex));
+
+                if (isTerminal(CharAcceptor.this.data, currentIndex)) {
+                    this.next = this.stringBuilder.toString();
+                    this.first = false;
+                    return true;
+                }
+            }
+        }
+
+        @Override
+        public String next() {
+            if (this.next == null && !this.hasNext()) {
+                throw new NoSuchElementException();
+            }
+
+            String result = this.next;
+            this.next = null;
+            return result;
+        }
+
+        private void addIndex(int index) {
+            if (this.offset >= this.indexes.length) {
+                int[] newIndexes = new int[this.offset + 1];
+                System.arraycopy(this.indexes, 0, newIndexes, 0, this.indexes.length);
+                this.indexes = newIndexes;
+            }
+
+            this.indexes[this.offset] = index;
+        }
     }
 }

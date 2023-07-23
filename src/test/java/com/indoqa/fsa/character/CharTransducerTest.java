@@ -19,12 +19,13 @@ package com.indoqa.fsa.character;
 import static com.indoqa.fsa.TestUtils.generateRandomStrings;
 import static org.junit.Assert.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.junit.Test;
 
+import com.indoqa.fsa.TestUtils;
 import com.indoqa.fsa.Token;
 import com.indoqa.fsa.Transducer;
 import com.indoqa.fsa.TransducerBuilder;
@@ -38,6 +39,80 @@ public class CharTransducerTest {
         Transducer transducer = CharTransducerBuilder.build(false, "#", "Nachteilzug#Nacht|eil|zug");
 
         assertEquals("Nacht|eil|zug", transducer.transduce("Nachteilzug"));
+    }
+
+    @Test
+    public void completionsWithCustomSeparator() {
+        NavigableSet<String> inputs = new TreeSet<>(Arrays.asList("a", "aa", "aaa", "aaaa", "ab", "abc"));
+
+        Function<String, String> makeCompletion = input -> "A_" + input + "_B";
+
+        CharTransducerBuilder transducerBuilder = new CharTransducerBuilder(true, (char) 0);
+        for (String eachInput : inputs) {
+            transducerBuilder.add(eachInput, makeCompletion.apply(eachInput));
+        }
+        CharTransducer transducer = transducerBuilder.build();
+
+        int length = 3;
+        int maxCount = 3;
+
+        for (String eachInput : inputs) {
+            String substring = eachInput.substring(0, Math.min(eachInput.length(), length));
+
+            List<String> expected = new ArrayList<>();
+            for (String eachValue : inputs.tailSet(substring, true)) {
+                if (expected.size() == maxCount || !eachValue.startsWith(substring)) {
+                    break;
+                }
+
+                expected.add(makeCompletion.apply(eachValue));
+            }
+
+            List<String> actual = transducer.getCompletions(substring, maxCount)
+                .stream()
+                .map(Token::getValue)
+                .collect(Collectors.toList());
+
+            assertEquals(expected.size(), actual.size());
+            assertTrue(expected.containsAll(actual));
+        }
+    }
+
+    @Test
+    public void completionsWithDefaultSeparator() {
+        NavigableSet<String> inputs = new TreeSet<>(Arrays.asList("a", "aa", "aaa", "aaaa", "ab", "abc"));
+
+        Function<String, String> makeCompletion = input -> "A_" + input + "_B";
+
+        CharTransducerBuilder transducerBuilder = new CharTransducerBuilder(true);
+        for (String eachInput : inputs) {
+            transducerBuilder.add(eachInput, makeCompletion.apply(eachInput));
+        }
+        CharTransducer transducer = transducerBuilder.build();
+
+        int length = 3;
+        int maxCount = 3;
+
+        for (String eachInput : inputs) {
+            String substring = eachInput.substring(0, Math.min(eachInput.length(), length));
+
+            List<String> expected = new ArrayList<>();
+            for (String eachValue : inputs.tailSet(substring, true)) {
+                if (expected.size() == maxCount || !eachValue.startsWith(substring)) {
+                    break;
+                }
+
+                expected.add(makeCompletion.apply(eachValue));
+            }
+
+            List<String> actual = transducer.getCompletions(substring, maxCount)
+                .stream()
+                .map(Token::getValue)
+                .collect(Collectors.toList());
+
+            assertEquals(expected.size(), actual.size());
+            assertTrue(expected.containsAll(actual));
+        }
     }
 
     @Test
@@ -79,7 +154,38 @@ public class CharTransducerTest {
     }
 
     @Test
-    public void test() {
+    public void getLongestMatch() {
+        CharTransducer transducer = CharTransducerBuilder.build(false, "\\|", "a|b", "aa|bb", "aaa|bbb");
+
+        Token longestMatch = transducer.getLongestMatch("aaaa");
+        assertEquals("aaa", longestMatch.getOriginal());
+        assertEquals("bbb", longestMatch.getValue());
+    }
+
+    @Test
+    public void iterate() {
+        String[] originals = {"a", "aa", "ab", "abcd", "b", "bb", "c", "d", "da", "dc", "dcccc", "dd"};
+        String[] values = {"1", "11", "12", "1234", "2", "22", "3", "4", "41", "43", "43333", "44"};
+
+        CharTransducerBuilder builder = new CharTransducerBuilder(true);
+        for (int i = 0; i < originals.length; i++) {
+            builder.add(originals[i], values[i]);
+        }
+        CharTransducer transducer = builder.build();
+
+        Iterator<Token> iterator = transducer.iterator();
+        for (int i = 0; i < originals.length; i++) {
+            assertTrue(iterator.hasNext());
+            Token token = iterator.next();
+            assertEquals(originals[i], token.getOriginal());
+            assertEquals(values[i], token.getValue());
+        }
+
+        assertFalse(iterator.hasNext());
+    }
+
+    @Test
+    public void random() {
         List<String> inputs = new ArrayList<>(generateRandomStrings(STRING_COUNT));
         List<String> outputs = new ArrayList<>(generateRandomStrings(STRING_COUNT));
 
@@ -102,6 +208,43 @@ public class CharTransducerTest {
                 "Random input should only be translated if it was part of the original input.",
                 expected,
                 transducer.transduce(eachOtherInput, eachOtherInput));
+        }
+    }
+
+    @Test
+    public void randomCompletions() {
+        NavigableSet<String> inputs = new TreeSet<>(TestUtils.generateRandomStrings(STRING_COUNT));
+
+        Function<String, String> makeCompletion = input -> "A_" + input + "_B";
+
+        CharTransducerBuilder transducerBuilder = new CharTransducerBuilder(true);
+        for (String eachInput : inputs) {
+            transducerBuilder.add(eachInput, makeCompletion.apply(eachInput));
+        }
+        CharTransducer transducer = transducerBuilder.build();
+
+        int length = 3;
+        int maxCount = 3;
+
+        for (String eachInput : inputs) {
+            String substring = eachInput.substring(0, length);
+
+            List<String> expected = new ArrayList<>();
+            for (String eachValue : inputs.tailSet(substring, true)) {
+                if (expected.size() == maxCount || !eachValue.startsWith(substring)) {
+                    break;
+                }
+
+                expected.add(makeCompletion.apply(eachValue));
+            }
+
+            List<String> actual = transducer.getCompletions(substring, maxCount)
+                .stream()
+                .map(Token::getValue)
+                .collect(Collectors.toList());
+
+            assertEquals(expected.size(), actual.size());
+            assertTrue(expected.containsAll(actual));
         }
     }
 

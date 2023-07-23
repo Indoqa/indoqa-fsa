@@ -105,7 +105,7 @@ public class MorfologikTransducer implements Transducer {
     }
 
     @Override
-    public String getLongestMatch(CharSequence sequence) {
+    public Token getLongestMatch(CharSequence sequence) {
         byte[] bytes = this.getBytes(sequence, 0, sequence.length());
         Result match = new Result();
 
@@ -118,7 +118,9 @@ public class MorfologikTransducer implements Transducer {
         ByteBuffer byteBuffer = this.iterator.next();
         String replacement = StandardCharsets.UTF_8.decode(byteBuffer).toString();
 
-        return replacement + EncodingUtils.getString(bytes, match.getMatchedLength(), bytes.length - match.getMatchedLength());
+        Token token = Token.create(0, sequence.subSequence(0, match.getMatchedLength()).toString());
+        token.setValue(replacement);
+        return token;
     }
 
     @Override

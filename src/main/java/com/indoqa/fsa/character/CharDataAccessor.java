@@ -41,6 +41,24 @@ public class CharDataAccessor {
         }
     }
 
+    public static int compare(char c1, char c2, boolean caseSensitive) {
+        if (c1 == c2) {
+            return 0;
+        }
+
+        if (caseSensitive) {
+            return c1 - c2;
+        }
+
+        char sc1 = switchCase(c1);
+        char sc2 = switchCase(c2);
+
+        char normalizedC1 = c1 <= sc1 ? c1 : sc1;
+        char normalizedC2 = c2 <= sc2 ? c2 : sc2;
+
+        return normalizedC1 - normalizedC2;
+    }
+
     public static int compare(CharSequence s1, CharSequence s2, boolean caseSensitive) {
         for (int i = 0; i < s1.length(); i++) {
             if (s2.length() == i) {
@@ -67,6 +85,10 @@ public class CharDataAccessor {
     }
 
     public static char switchCase(char character) {
+        if (character == Character.MAX_VALUE) {
+            return character;
+        }
+
         return CASE_INSENSITIVE[character];
     }
 
@@ -78,8 +100,18 @@ public class CharDataAccessor {
         return !caseSensitive && required < CASE_INSENSITIVE.length && CASE_INSENSITIVE[required] == actual;
     }
 
+    /**
+     * Examine a node to find an outgoing connection matching the given <code>label</code>
+     *
+     * @param data The graph data
+     * @param index The index of the node.
+     * @param label The label to match.
+     * @param caseSensitive whether or not to match labels in a case-sensitive manner.
+     *
+     * @return The index of the outgoing connection or <code>-1</code> if no matching connection exists.
+     */
     protected static int getArc(char[] data, int index, char label, boolean caseSensitive) {
-        for (int i = index; index < data.length; i += NODE_SIZE) {
+        for (int i = index; i < data.length; i += NODE_SIZE) {
             if (equals(getLabel(data, i), label, caseSensitive)) {
                 return i;
             }
@@ -96,6 +128,14 @@ public class CharDataAccessor {
         return data[index];
     }
 
+    /**
+     * Get the nodex index and outgoing connection points to.
+     *
+     * @param data The graph data.
+     * @param index The index of the outgoing connection.
+     *
+     * @return The target node index.
+     */
     protected static int getTarget(char[] data, int index) {
         return (data[index + ADDRESS_OFFSET] & MASK_ADDRESS_HIGH) << 16 | data[index + ADDRESS_OFFSET + 1];
     }
@@ -104,6 +144,15 @@ public class CharDataAccessor {
         return (data[index + FLAGS_OFFSET] & MASK_LAST) != 0;
     }
 
+    /**
+     * Determines whether and outgoing connection is marked as "terminal" or not.
+     *
+     * Terminal connection mark the end of an accepted input.
+     *
+     * @param data The graph data.
+     * @param index The index of the connection.
+     * @return <code>true</code> when the connection is "terminal", <code>false</code> otherwise.
+     */
     protected static boolean isTerminal(char[] data, int index) {
         return (data[index + FLAGS_OFFSET] & MASK_TERMINAL) != 0;
     }

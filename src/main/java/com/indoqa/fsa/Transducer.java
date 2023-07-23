@@ -19,8 +19,6 @@ package com.indoqa.fsa;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.indoqa.fsa.utils.TokenCandidate;
-
 public interface Transducer {
 
     /**
@@ -124,9 +122,9 @@ public interface Transducer {
      *
      * @param sequence The sequence in which to find matches.
      *
-     * @return The transduction of the longest match or <code>null</code>.
+     * @return The token of the longest match or <code>null</code>.
      */
-    String getLongestMatch(CharSequence sequence);
+    Token getLongestMatch(CharSequence sequence);
 
     /**
      * Find all transducible tokens anywhere in the given <code>sequence</code>.<br/>

@@ -18,8 +18,7 @@ package com.indoqa.fsa.character;
 
 import static org.junit.Assert.*;
 
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import org.junit.Test;
 
@@ -34,6 +33,72 @@ public class CharAcceptorTest {
 
     private static String[] getValues(List<Token> tokens) {
         return tokens.stream().map(Token::getValue).toArray(String[]::new);
+    }
+
+    @Test
+    public void completionOrderCaseInsensitive() {
+        CharAcceptorBuilder builder = new CharAcceptorBuilder(false);
+        builder.addAcceptedInput("aca");
+        builder.addAcceptedInput("aBa");
+        builder.addAcceptedInput("aaa");
+        CharAcceptor acceptor = builder.build();
+
+        List<String> completions = acceptor.getCompletions("a", 3);
+        assertEquals(3, completions.size());
+        assertEquals("aaa", completions.get(0));
+        assertEquals("aBa", completions.get(1));
+        assertEquals("aca", completions.get(2));
+    }
+
+    @Test
+    public void completionOrderCaseSensitive() {
+        CharAcceptorBuilder builder = new CharAcceptorBuilder(true);
+        builder.addAcceptedInput("aca");
+        builder.addAcceptedInput("aBa");
+        builder.addAcceptedInput("aaa");
+        CharAcceptor acceptor = builder.build();
+
+        List<String> completions = acceptor.getCompletions("a", 3);
+        assertEquals(3, completions.size());
+        assertEquals("aBa", completions.get(0));
+        assertEquals("aaa", completions.get(1));
+        assertEquals("aca", completions.get(2));
+    }
+
+    @Test
+    public void getCompletions() {
+        CharAcceptorBuilder builder = new CharAcceptorBuilder(false);
+        builder.addAcceptedInput("a");
+        builder.addAcceptedInput("aa");
+        builder.addAcceptedInput("ab");
+        builder.addAcceptedInput("abcd");
+        builder.addAcceptedInput("b");
+        builder.addAcceptedInput("bb");
+        builder.addAcceptedInput("c");
+        builder.addAcceptedInput("d");
+        builder.addAcceptedInput("da");
+        builder.addAcceptedInput("dc");
+        builder.addAcceptedInput("dcccc");
+        builder.addAcceptedInput("dd");
+        CharAcceptor charAcceptor = builder.build();
+
+        List<String> completions = charAcceptor.getCompletions("", 10);
+        assertEquals("[a, aa, ab, abcd, b, bb, c, d, da, dc]", completions.toString());
+
+        completions = charAcceptor.getCompletions("a", 2);
+        assertEquals("[a, aa]", completions.toString());
+
+        completions = charAcceptor.getCompletions("a", 10);
+        assertEquals("[a, aa, ab, abcd]", completions.toString());
+
+        completions = charAcceptor.getCompletions("c", 10);
+        assertEquals("[c]", completions.toString());
+
+        completions = charAcceptor.getCompletions("dc", 1);
+        assertEquals("[dc]", completions.toString());
+
+        completions = charAcceptor.getCompletions("e", 1);
+        assertEquals("[]", completions.toString());
     }
 
     @Test
@@ -150,7 +215,7 @@ public class CharAcceptorTest {
     }
 
     @Test
-    public void random() {
+    public void randomAccepts() {
         Set<String> inputs = TestUtils.generateRandomStrings(STRING_COUNT);
         CharAcceptor acceptor = CharAcceptorBuilder.build(true, inputs);
 
@@ -169,6 +234,33 @@ public class CharAcceptorTest {
                     inputs.contains(eachOtherInput),
                     acceptor.accepts(eachOtherInput));
             }
+        }
+    }
+
+    @Test
+    public void randomCompletions() {
+        NavigableSet<String> inputs = new TreeSet<>(TestUtils.generateRandomStrings(STRING_COUNT));
+        CharAcceptor acceptor = CharAcceptorBuilder.build(true, inputs);
+
+        int length = 5;
+        int maxCount = 3;
+
+        for (String eachInput : inputs) {
+            String substring = eachInput.substring(0, Math.min(eachInput.length(), length));
+
+            List<String> expected = new ArrayList<>();
+            for (String eachValue : inputs.tailSet(substring, true)) {
+                if (expected.size() == maxCount || !eachValue.startsWith(substring)) {
+                    break;
+                }
+
+                expected.add(eachValue);
+            }
+
+            List<String> actual = acceptor.getCompletions(substring, maxCount);
+
+            assertEquals("Number of completions is wrong", expected.size(), actual.size());
+            assertTrue("Unexpected completions", expected.containsAll(actual));
         }
     }
 

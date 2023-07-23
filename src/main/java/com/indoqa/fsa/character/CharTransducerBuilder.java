@@ -45,8 +45,9 @@ public class CharTransducerBuilder implements TransducerBuilder {
     public CharTransducerBuilder(boolean caseSensitive, char separator, int capacityIncrement, int shrinkLimit) {
         super();
 
-        this.acceptorBuilder = new CharAcceptorBuilder(caseSensitive, capacityIncrement, shrinkLimit);
         this.separator = separator;
+        this.acceptorBuilder = new CharAcceptorBuilder(caseSensitive, capacityIncrement, shrinkLimit);
+        this.acceptorBuilder.setSortFirst(this.separator);
     }
 
     public static CharTransducer build(boolean caseSensitive, String splitPattern, Iterable<String> values) {
@@ -65,7 +66,7 @@ public class CharTransducerBuilder implements TransducerBuilder {
     }
 
     public static CharTransducer empty() {
-        return build(true, String.valueOf(DEFAULT_SEPARATOR));
+        return build(true, "");
     }
 
     public static CharTransducer read(InputStream inputStream) throws IOException {
@@ -103,7 +104,7 @@ public class CharTransducerBuilder implements TransducerBuilder {
     @Override
     public CharTransducer build() {
         CharAcceptor charAcceptor = this.acceptorBuilder.build();
-        return new CharTransducer(charAcceptor, DEFAULT_SEPARATOR);
+        return new CharTransducer(charAcceptor, this.separator);
     }
 
     public void setAbortSupplier(BooleanSupplier abortSupplier) {
@@ -118,7 +119,7 @@ public class CharTransducerBuilder implements TransducerBuilder {
     public void write(OutputStream outputStream) throws IOException {
         this.acceptorBuilder.write(outputStream);
 
-        outputStream.write(DEFAULT_SEPARATOR);
-        outputStream.write(DEFAULT_SEPARATOR >> 8);
+        outputStream.write(this.separator);
+        outputStream.write(this.separator >> 8);
     }
 }

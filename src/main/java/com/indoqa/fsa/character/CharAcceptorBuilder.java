@@ -29,7 +29,9 @@ import com.indoqa.fsa.AcceptorBuilder;
 
 public class CharAcceptorBuilder implements AcceptorBuilder {
 
-    public static final int FILE_VERSION = 2;
+    private static final int MIN_FILE_VERSION = 2;
+    public static final int FILE_VERSION = 3; // added "sortFirst"
+
     public static final int DEFAULT_CAPACITY_INCREMENT = 16 * 1024;
     public static final int DEFAULT_SHRINK_LIMIT = 1_000;
 
@@ -48,6 +50,8 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     private boolean minified;
     private boolean remapped;
     private int requiredLength;
+
+    private Character sortFirst;
 
     public CharAcceptorBuilder(boolean caseSensitive) {
         this(caseSensitive, DEFAULT_CAPACITY_INCREMENT, DEFAULT_SHRINK_LIMIT);
@@ -80,7 +84,7 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         DataInputStream dataInputStream = new DataInputStream(inputStream);
 
         int fileVersion = dataInputStream.readInt();
-        if (FILE_VERSION != fileVersion) {
+        if (fileVersion < MIN_FILE_VERSION || fileVersion > FILE_VERSION) {
             throw new IllegalArgumentException("Invalid file version. Expected " + FILE_VERSION + ", but found " + fileVersion + ".");
         }
 
@@ -132,6 +136,7 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     @Override
     public CharAcceptor build() {
         this.replacements = new Replacements(this.nodeCount);
+        this.prepareNodes();
         this.minify();
         this.remap();
         this.replacements = null;
@@ -151,6 +156,7 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
     @Override
     public void write(OutputStream outputStream) throws IOException {
         this.replacements = new Replacements(this.nodeCount);
+        this.prepareNodes();
         this.minify();
         this.remap();
         this.replacements = null;
@@ -202,9 +208,14 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
         int insertIndex = 0;
         for (int i = 0; i < oldNodeData.length; i += CharDataAccessor.NODE_SIZE) {
-            if (CharDataAccessor.getLabel(oldNodeData, i) < label) {
-                insertIndex = i + CharDataAccessor.NODE_SIZE;
+            char existingLabel = CharDataAccessor.getLabel(oldNodeData, i);
+
+            int compare = CharDataAccessor.compare(existingLabel, label, this.caseSensitive);
+            if (compare >= 0) {
+                break;
             }
+
+            insertIndex = i + CharDataAccessor.NODE_SIZE;
         }
 
         System.arraycopy(oldNodeData, 0, newNodeData, 0, insertIndex);
@@ -223,15 +234,10 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         if (terminal) {
             CharDataAccessor.setTerminal(this.nodes[node], insertIndex, terminal);
         }
+    }
 
-        if (insertIndex < oldNodeData.length) {
-            return;
-        }
-
-        CharDataAccessor.setLast(this.nodes[node], newNodeData.length - CharDataAccessor.NODE_SIZE, true);
-        if (newNodeData.length > CharDataAccessor.NODE_SIZE) {
-            CharDataAccessor.setLast(this.nodes[node], newNodeData.length - 2 * CharDataAccessor.NODE_SIZE, false);
-        }
+    protected void setSortFirst(Character sortFirst) {
+        this.sortFirst = sortFirst;
     }
 
     private void addNode() {
@@ -447,6 +453,31 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
         this.sendMessage("Minified in " + formatNumber(duration / 1_000) + " seconds");
 
         this.minified = true;
+    }
+
+    private void prepareNodes() {
+        char[] tempNode = new char[CharDataAccessor.NODE_SIZE];
+
+        for (int i = 0; i < this.nodeCount; i++) {
+            char[] eachNode = this.nodes[i];
+            if (eachNode.length == 0) {
+                continue;
+            }
+
+            if (this.sortFirst != null) {
+                // we are to sort a certain label to the first position
+                int arc = CharDataAccessor.getArc(eachNode, 0, this.sortFirst.charValue(), this.caseSensitive);
+                if (arc > 0) {
+                    // we only need to change something if that label is not first
+                    System.arraycopy(eachNode, arc, tempNode, 0, NODE_SIZE); // copy the label data
+                    System.arraycopy(eachNode, 0, eachNode, NODE_SIZE, arc); // move everything from 0 - arc by one NODE_SIZE
+                    System.arraycopy(tempNode, 0, eachNode, 0, NODE_SIZE); // copy label data to position 0
+                }
+            }
+
+            // mark the last arc
+            CharDataAccessor.setLast(eachNode, eachNode.length - CharDataAccessor.NODE_SIZE, true);
+        }
     }
 
     private void remap() {
