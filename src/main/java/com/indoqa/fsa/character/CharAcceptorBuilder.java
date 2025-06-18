@@ -460,7 +460,7 @@ public class CharAcceptorBuilder implements AcceptorBuilder {
 
         for (int i = 0; i < this.nodeCount; i++) {
             char[] eachNode = this.nodes[i];
-            if (eachNode.length == 0) {
+            if (eachNode == null || eachNode.length == 0) {
                 continue;
             }
 
